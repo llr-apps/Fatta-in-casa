@@ -1,0 +1,1906 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Brew Card — 20 Styles</title>
+<meta name="description" content="Dynamic homebrew recipe card: 20 beer styles, all-grain or extract, scalable batch size, live boil timer, and an ingredient-to-style matcher.">
+<meta name="theme-color" content="#1a130b">
+<link rel="manifest" href="./manifest.webmanifest">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Brew Card">
+<link rel="apple-touch-icon" href="./icon-180.png">
+<link rel="icon" type="image/png" sizes="192x192" href="./icon-192.png">
+<meta property="og:title" content="Brew Card — 20 Styles">
+<meta property="og:description" content="Pick a style, scale the batch, run the boil timer, or find the closest beer to brew from what's in your cupboard.">
+<meta property="og:type" content="website">
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap');
+  :root{
+    --bg:#1a130b;--bg2:#241a0f;--gold:#e8a317;--gold-bright:#f6c453;
+    --foam:#f5efe0;--dim:#cebd9f;--saaz:#7a9a4a;--saaz-text:#bcd87f;--saaz-bright:#9ec25a;
+    --copper:#c8552b;--copper-text:#ec7d4f;
+    --line:rgba(245,239,224,.14);
+    color-scheme:dark;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{-webkit-text-size-adjust:100%;background:#1a130b}
+  html,body{background:#1a130b!important}
+  body{font-family:'Inter',system-ui,sans-serif;color:var(--foam);line-height:1.5}
+  .app{background:var(--bg);min-height:100vh;padding:0 0 60px;color:var(--foam)}
+  .wrap{max-width:560px;margin:0 auto;padding:0 18px}
+  header{padding:30px 18px 22px;text-align:center;border-bottom:1px solid var(--line);
+    background:radial-gradient(120% 80% at 50% -20%, rgba(232,163,23,.20), transparent 60%)}
+  .eyebrow{font-family:'Oswald',sans-serif;letter-spacing:.3em;text-transform:uppercase;font-size:11px;color:var(--gold);font-weight:600;margin-bottom:8px}
+  h1{font-family:'Oswald',sans-serif;font-weight:700;font-size:34px;line-height:1;text-transform:uppercase}
+  h1 span{color:var(--gold-bright)}
+  .style-line{color:var(--dim);font-size:12.5px;margin-top:8px}
+
+  .selector{margin:20px 0 8px;position:relative}
+  select{
+    -webkit-appearance:none;appearance:none;width:100%;
+    font-family:'Oswald',sans-serif;font-size:17px;letter-spacing:.04em;
+    background:var(--bg2);color:var(--gold-bright);border:1px solid var(--gold);
+    border-radius:14px;padding:15px 44px 15px 18px;cursor:pointer;
+  }
+  .selector::after{content:"▾";position:absolute;right:18px;top:50%;transform:translateY(-50%);color:var(--gold);pointer-events:none;font-size:14px}
+  .desc{font-size:13px;color:var(--dim);background:var(--bg2);border:1px solid var(--line);border-radius:12px;padding:13px 15px;margin-bottom:6px}
+
+  .toggle{display:flex;gap:8px;margin:10px 0 6px}
+  .toggle button{flex:1;padding:11px;border-radius:12px;cursor:pointer;font-family:'Oswald',sans-serif;font-size:14px;letter-spacing:.04em;text-transform:uppercase;background:var(--bg2);border:1px solid var(--line);color:var(--dim);transition:.15s}
+  .toggle button.on{background:var(--gold);color:var(--bg);border-color:var(--gold);font-weight:600}
+
+  .suggest{margin:12px 0 4px;background:var(--bg2);border:1px solid var(--saaz);border-radius:14px;overflow:hidden}
+  .suggest-head{width:100%;text-align:left;background:rgba(122,154,74,.14);border:none;color:var(--saaz-text);font-family:'Oswald',sans-serif;font-size:15px;letter-spacing:.04em;text-transform:uppercase;padding:14px 16px;cursor:pointer;display:flex;justify-content:space-between;align-items:center}
+  .suggest-body{padding:4px 16px 16px}
+  .suggest-hint{font-size:12.5px;color:var(--dim);margin:8px 0 12px}
+  .photo-add{display:flex;align-items:center;gap:10px;margin-bottom:14px;flex-wrap:wrap}
+  .photo-btn{display:inline-flex;align-items:center;gap:7px;font-family:'Oswald',sans-serif;font-size:14px;letter-spacing:.03em;text-transform:uppercase;background:var(--copper);color:#fff;border:none;border-radius:12px;padding:11px 16px;cursor:pointer}
+  .photo-btn:active{filter:brightness(1.1)}
+  .photo-status{font-size:12.5px;color:var(--dim);flex:1;min-width:140px}
+  .photo-status.ok{color:var(--saaz-text)}
+  .photo-status.err{color:var(--copper-text)}
+  .chip-group{margin-bottom:12px}
+  .chip-group h4{font-family:'Oswald',sans-serif;font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--dim);margin-bottom:7px}
+  .chips{display:flex;flex-wrap:wrap;gap:7px}
+  .chip{font-size:12.5px;padding:7px 11px;border-radius:20px;border:1px solid var(--line);background:transparent;color:var(--foam);cursor:pointer;transition:.12s}
+  .chip.on{background:var(--saaz-bright);border-color:var(--saaz-bright);color:#15100a;font-weight:600}
+  .results{margin-top:6px}
+  .result{display:flex;align-items:center;gap:12px;padding:12px 14px;background:var(--bg);border:1px solid var(--line);border-radius:12px;margin-bottom:8px;cursor:pointer;width:100%;text-align:left}
+  .result:active{border-color:var(--gold)}
+  .result .pct{font-family:'Oswald',sans-serif;font-size:22px;font-weight:600;color:var(--gold-bright);flex:none;width:52px}
+  .result.full .pct{color:var(--saaz-text)}
+  .rtext{display:flex;flex-direction:column;min-width:0}
+  .rname{font-size:14px;font-weight:600;color:var(--foam)}
+  .rmiss{font-size:11.5px;color:var(--dim);margin-top:2px}
+
+  .batch{margin:14px 0 6px;padding:16px 18px;background:var(--bg2);border:1px solid var(--line);border-radius:14px}
+  .batch-top{display:flex;justify-content:space-between;align-items:baseline}
+  .batch-label{font-family:'Oswald',sans-serif;text-transform:uppercase;letter-spacing:.14em;font-size:11px;color:var(--dim)}
+  .batch-val{font-family:'Oswald',sans-serif;font-size:26px;color:var(--gold-bright);font-weight:600}
+  .batch-val small{font-size:13px;color:var(--dim);font-weight:400}
+  input[type=range]{-webkit-appearance:none;width:100%;height:6px;margin-top:14px;border-radius:4px;outline:none;
+    background:linear-gradient(90deg,var(--gold) var(--p,40%),rgba(245,239,224,.15) var(--p,40%))}
+  input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:24px;height:24px;border-radius:50%;background:var(--gold-bright);border:3px solid var(--bg);cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.4)}
+  input[type=range]::-moz-range-thumb{width:20px;height:20px;border-radius:50%;background:var(--gold-bright);border:3px solid var(--bg);cursor:pointer}
+  .presets{display:flex;gap:8px;margin-top:12px}
+  .preset{flex:1;padding:8px 0;text-align:center;cursor:pointer;font-family:'Oswald',sans-serif;font-size:14px;background:transparent;border:1px solid var(--line);border-radius:10px;color:var(--dim);transition:.15s}
+  .preset.on{background:var(--gold);color:var(--bg);border-color:var(--gold);font-weight:600}
+
+  .stats{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin:14px 0}
+  .stat{background:var(--bg2);border:1px solid var(--line);border-radius:12px;padding:11px 4px;text-align:center}
+  .stat .n{font-family:'Oswald',sans-serif;font-size:17px;color:var(--gold-bright);font-weight:600}
+  .stat .l{font-size:9px;letter-spacing:.08em;text-transform:uppercase;color:var(--dim);margin-top:2px}
+
+  .section{margin-top:24px}
+  .sec-head{display:flex;align-items:center;gap:10px;margin-bottom:13px}
+  .sec-num{font-family:'Oswald',sans-serif;font-weight:700;font-size:13px;width:26px;height:26px;display:grid;place-items:center;border-radius:50%;background:var(--gold);color:var(--bg);flex:none}
+  .sec-head h2{font-family:'Oswald',sans-serif;text-transform:uppercase;letter-spacing:.07em;font-size:17px;font-weight:600}
+
+  .row{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:12px 15px;background:var(--bg2);border:1px solid var(--line);border-radius:12px;margin-bottom:8px}
+  .row .name{font-size:14px}
+  .row .name small{display:block;color:var(--dim);font-size:11.5px;margin-top:2px}
+  .row .amt{font-family:'Oswald',sans-serif;font-size:17px;color:var(--gold-bright);font-weight:500;white-space:nowrap}
+  .tag{display:inline-block;font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:var(--saaz-text);border:1px solid var(--saaz-text);border-radius:20px;padding:1px 7px;margin-left:6px;vertical-align:middle}
+
+  .mash-step{display:flex;align-items:center;gap:14px;padding:12px 15px;background:var(--bg2);border:1px solid var(--line);border-radius:12px;margin-bottom:8px}
+  .mash-temp{font-family:'Oswald',sans-serif;font-size:23px;color:var(--gold-bright);font-weight:600;flex:none;width:62px}
+  .mash-temp small{font-size:12px;color:var(--dim)}
+  .mash-desc{font-size:13px}.mash-desc b{color:var(--foam)}
+  .mash-time{margin-left:auto;font-family:'Oswald',sans-serif;color:var(--dim);font-size:13px;flex:none;display:flex;flex-direction:column;align-items:flex-end;gap:6px;min-width:70px;text-align:right}
+  .mtimer{font-family:'Oswald',sans-serif;letter-spacing:.03em;background:var(--bg);border:1px solid var(--line);color:var(--gold-bright);border-radius:8px;padding:5px 9px;font-size:14px;font-weight:600;cursor:pointer;white-space:nowrap;min-width:66px;text-align:center}
+  .mtimer.running{border-color:var(--gold);color:var(--foam)}
+  .mtimer.done{background:var(--gold);color:#1a130b;border-color:var(--gold)}
+
+  .timer-card{background:var(--bg2);border:1px solid var(--line);border-radius:16px;padding:22px;text-align:center;margin-bottom:8px}
+  .jump{margin-top:16px;border-top:1px dashed var(--line);padding-top:14px}
+  .jump-label{display:block;font-size:.78rem;color:var(--dim);margin-bottom:9px;line-height:1.4}
+  .jump-chips{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin-bottom:9px}
+  .jump-chip{background:var(--bg);border:1px solid var(--line);color:var(--foam);border-radius:999px;padding:6px 13px;font-size:.8rem;font-weight:600;cursor:pointer;font-family:inherit}
+  .jump-chip:active{border-color:var(--gold);color:var(--gold-bright)}
+  .jump-manual{display:flex;gap:6px;justify-content:center;align-items:center}
+  .jump-manual input{width:130px;background:var(--bg);border:1px solid var(--line);color:var(--foam);border-radius:8px;padding:8px 10px;font-size:.85rem;text-align:center;font-family:inherit}
+  .btn-mini{padding:8px 16px;font-size:.8rem;background:var(--gold);color:#1a130b;border:none;border-radius:8px;font-weight:700;cursor:pointer;font-family:inherit}
+  .btn-mini:active{background:var(--gold-bright)}
+  .clock{font-family:'Oswald',sans-serif;font-size:58px;font-weight:600;line-height:1}
+  .clock.alert{color:var(--copper)}
+  .clock-label{font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--dim);margin-top:6px;min-height:15px}
+  .btns{display:flex;gap:10px;margin-top:16px}
+  .btn{flex:1;padding:13px;border-radius:12px;border:none;cursor:pointer;font-family:'Oswald',sans-serif;font-size:15px;letter-spacing:.04em;text-transform:uppercase;font-weight:500}
+  .btn-go{background:var(--gold);color:var(--bg)}.btn-go:active{background:var(--gold-bright)}
+  .btn-reset{background:transparent;color:var(--dim);border:1px solid var(--line)}
+  .hop-schedule{margin-top:16px;text-align:left}
+  .hop-line{display:flex;align-items:center;gap:12px;padding:10px 0;border-top:1px solid var(--line);font-size:13px}
+  .hop-line:first-child{border-top:none}
+  .hop-dot{width:10px;height:10px;border-radius:50%;background:var(--dim);flex:none;transition:.2s}
+  .hop-line.now .hop-dot{background:var(--copper);box-shadow:0 0 0 4px rgba(200,85,43,.25)}
+  .hop-line.done .hop-dot{background:var(--saaz)}
+  .hop-line.now{color:var(--gold-bright);font-weight:600}
+  .hop-line .when{margin-left:auto;font-family:'Oswald',sans-serif;color:var(--dim)}
+  .hop-line.now .when{color:var(--copper)}
+  /* tick box per boil phase */
+  .hop-tick{display:inline-flex;align-items:center;justify-content:center;width:21px;height:21px;border:1.5px solid var(--line);border-radius:6px;color:transparent;font-size:13px;flex:none;transition:.15s;cursor:pointer}
+  .hop-line.done .hop-tick,.hop-line.ticked .hop-tick{background:var(--gold);border-color:var(--gold);color:#1a130b}
+  .hop-line.now .hop-tick{border-color:var(--copper);color:var(--copper)}
+  /* boil knob (replaces start/reset/jump) */
+  .boil-knob{-webkit-appearance:none;appearance:none;width:100%;height:14px;border-radius:999px;margin:20px 0 6px;outline:none;cursor:grab;
+    background:linear-gradient(90deg,var(--gold) 0%,var(--gold) var(--p,0%),#100b06 var(--p,0%),#100b06 100%);border:1px solid var(--line)}
+  .boil-knob:active{cursor:grabbing}
+  .boil-knob::-webkit-slider-thumb{-webkit-appearance:none;width:30px;height:30px;border-radius:50%;background:var(--gold-bright);border:3px solid var(--bg2);box-shadow:0 1px 5px rgba(0,0,0,.55)}
+  .boil-knob::-moz-range-thumb{width:30px;height:30px;border-radius:50%;background:var(--gold-bright);border:3px solid var(--bg2);box-shadow:0 1px 5px rgba(0,0,0,.55)}
+  .knob-scale{display:flex;justify-content:space-between;font-family:'Oswald',sans-serif;font-size:11px;letter-spacing:.06em;color:var(--dim);text-transform:uppercase}
+  .chill-card{background:var(--bg2);border:1px solid var(--line);border-radius:14px;padding:16px;margin-top:8px}
+  .chill-row{display:flex;align-items:center;justify-content:space-between;gap:12px}
+  .chill-title{font-family:'Oswald',sans-serif;font-size:16px;color:var(--foam);font-weight:600;text-transform:uppercase;letter-spacing:.04em}
+  .chill-sub{font-size:12px;color:var(--dim);margin-top:2px}
+  .chill-clock{font-family:'Oswald',sans-serif;font-size:40px;font-weight:600;color:var(--gold-bright);cursor:pointer;line-height:1;-webkit-user-select:none;user-select:none}
+  .chill-clock.running{color:var(--foam)}
+  .chill-note{font-size:12px;color:var(--dim);margin-top:10px}
+  /* brew log */
+  .log-card{background:var(--bg2);border:1px solid var(--line);border-radius:14px;padding:16px}
+  .log-row{display:flex;gap:8px;margin-bottom:10px;align-items:flex-start}
+  .log-row input,.log-row textarea{flex:1;min-width:0;background:var(--bg);border:1px solid var(--line);color:var(--foam);border-radius:8px;padding:9px 11px;font-size:14px;font-family:inherit}
+  .log-row textarea{resize:vertical;min-height:42px}
+  .log-row .mini-btn{flex:none;white-space:nowrap;align-self:stretch}
+  .log-list{margin:4px 0 12px}
+  .log-item{display:flex;gap:10px;align-items:flex-start;padding:9px 0;border-top:1px solid var(--line);font-size:13px}
+  .log-item:first-child{border-top:none}
+  .log-when{font-family:'Oswald',sans-serif;font-size:11px;color:var(--dim);white-space:nowrap;min-width:96px;letter-spacing:.03em;padding-top:1px}
+  .log-body{flex:1;word-break:break-word}
+  .log-body b{color:var(--gold-bright)}
+  .log-beer{color:var(--dim);font-size:11px;margin-top:1px}
+  .log-del{flex:none;color:var(--dim);cursor:pointer;border:none;background:none;font-size:15px;line-height:1;padding:2px 4px}
+  .log-del:active{color:var(--copper)}
+  .log-empty{color:var(--dim);font-size:13px;font-style:italic;padding:6px 0}
+  .log-hint{font-size:11.5px;color:var(--dim);margin-top:8px;line-height:1.4}
+  .log-note-btns{display:flex;flex-direction:column;gap:6px;flex:none}
+  #logMic.rec{background:var(--copper);color:#1a130b;border-color:var(--copper);animation:micpulse 1s ease-in-out infinite}
+  @keyframes micpulse{0%,100%{opacity:1}50%{opacity:.55}}
+  /* ingredient editor */
+  .ed-block{margin-bottom:14px}
+  .ed-h{font-family:'Oswald',sans-serif;font-size:13px;letter-spacing:.05em;text-transform:uppercase;color:var(--gold-bright);margin:4px 0 8px}
+  .ed-h small{color:var(--dim);text-transform:none;letter-spacing:0;font-size:11px;margin-left:6px}
+  .ed-row{display:flex;gap:6px;align-items:center;margin-bottom:7px;flex-wrap:wrap}
+  .ed-row input,.ed-row select{background:var(--bg);border:1px solid var(--line);color:var(--foam);border-radius:7px;padding:7px 8px;font-size:13px;font-family:inherit;min-width:0}
+  .ed-name{flex:1 1 120px}
+  .ed-amt{width:62px;text-align:right}
+  .ed-time{width:92px}
+  .ed-tag{flex:0 0 auto}
+  .ed-unit{font-size:12px;color:var(--dim)}
+  .ed-del{flex:none;background:none;border:none;color:var(--dim);font-size:14px;cursor:pointer;padding:4px}
+  .ed-del:active{color:var(--copper)}
+  /* fermentation summary (yeast-driven) */
+  .ferm-summary{background:var(--bg2);border:1px solid var(--line);border-radius:12px;padding:14px;margin-bottom:12px}
+  .fs-line{display:flex;justify-content:space-between;gap:10px;font-size:13px;padding:4px 0;border-bottom:1px solid rgba(245,239,224,.05)}
+  .fs-line:last-of-type{border-bottom:none}
+  .fs-k{color:var(--dim);font-family:'Oswald',sans-serif;letter-spacing:.04em;text-transform:uppercase;font-size:11.5px;flex:none}
+  .fs-pct{color:var(--gold-bright);font-weight:700;font-family:'Oswald',sans-serif}
+  .fs-note{font-size:12px;color:var(--dim);margin-top:9px;line-height:1.45}
+
+  .ferm{position:relative;padding-left:26px}
+  .ferm::before{content:"";position:absolute;left:8px;top:6px;bottom:6px;width:2px;background:var(--line)}
+  .ferm-step{position:relative;margin-bottom:15px}
+  .ferm-step::before{content:"";position:absolute;left:-22px;top:4px;width:12px;height:12px;border-radius:50%;background:var(--gold);border:2px solid var(--bg)}
+  .ferm-step h3{font-family:'Oswald',sans-serif;font-size:14px;letter-spacing:.04em;text-transform:uppercase}
+  .ferm-step .meta{color:var(--gold-bright);font-size:13px;font-family:'Oswald',sans-serif}
+  .ferm-step p{font-size:13px;color:var(--dim);margin-top:3px}
+
+  .walk-step{position:relative;padding:13px 15px 13px 50px;background:var(--bg2);border:1px solid var(--line);border-radius:12px;margin-bottom:8px;counter-increment:step}
+  .walk{counter-reset:step}
+  .walk-step::before{content:counter(step);position:absolute;left:13px;top:13px;width:25px;height:25px;display:grid;place-items:center;border-radius:50%;background:var(--gold);color:var(--bg);font-family:'Oswald',sans-serif;font-weight:700;font-size:13px}
+  .walk-step h3{font-family:'Oswald',sans-serif;font-size:13px;letter-spacing:.05em;text-transform:uppercase;margin-bottom:3px}
+  .walk-step p{font-size:13px;color:var(--dim)}.walk-step p b{color:var(--gold-bright);font-weight:600}
+
+  .note{font-size:12.5px;color:var(--dim);background:rgba(122,154,74,.08);border:1px solid rgba(122,154,74,.25);border-radius:12px;padding:12px 15px;margin-top:8px}
+  .note b{color:var(--saaz-text)}
+
+  .list-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+  .mini-btn{font-family:'Oswald',sans-serif;font-size:13px;letter-spacing:.03em;text-transform:uppercase;padding:10px 14px;border-radius:11px;border:1px solid var(--line);background:var(--bg2);color:var(--foam);cursor:pointer}
+  .mini-btn.gold{background:var(--gold);color:var(--bg);border-color:var(--gold);font-weight:600}
+  .cart{margin-top:10px;background:var(--bg2);border:1px solid var(--line);border-radius:12px;padding:12px 14px}
+  .cart h4{font-family:'Oswald',sans-serif;font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--dim);margin-bottom:8px}
+  .cart-item{display:flex;justify-content:space-between;align-items:center;gap:10px;font-size:13px;padding:7px 0;border-top:1px solid var(--line)}
+  .cart-item:first-of-type{border-top:none}
+  .cart-item button{background:transparent;border:none;color:var(--copper-text);font-size:17px;cursor:pointer;line-height:1;padding:0 4px}
+  .cart-actions{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap}
+
+  .modal{position:fixed;inset:0;background:rgba(0,0,0,.65);display:flex;align-items:center;justify-content:center;padding:18px;z-index:50}
+  .modal[hidden]{display:none}
+  .modal-box{background:var(--bg2);border:1px solid var(--gold);border-radius:16px;padding:16px;width:100%;max-width:520px;max-height:85vh;display:flex;flex-direction:column}
+  .modal-head{display:flex;justify-content:space-between;align-items:center;font-family:'Oswald',sans-serif;text-transform:uppercase;letter-spacing:.05em;color:var(--gold-bright);font-size:15px;margin-bottom:10px}
+  .modal-head button{background:transparent;border:none;color:var(--dim);font-size:22px;cursor:pointer;line-height:1}
+  #modalText{flex:1;min-height:240px;width:100%;background:var(--bg);color:var(--foam);border:1px solid var(--line);border-radius:10px;padding:12px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12.5px;line-height:1.5;resize:vertical;white-space:pre;overflow:auto}
+  .modal-actions{display:flex;gap:8px;margin-top:10px}
+  .modal-hint{font-size:11.5px;color:var(--dim);margin-top:8px}
+
+  /* ---- printable brew sheet ---- */
+  .sheet-overlay{position:fixed;inset:0;background:#100c07;z-index:60;display:flex;flex-direction:column}
+  .sheet-overlay[hidden]{display:none}
+  .sheet-toolbar{display:flex;gap:8px;justify-content:flex-end;align-items:center;padding:10px 14px;background:var(--bg2);border-bottom:1px solid var(--line);flex:none}
+  .sheet-scroll{flex:1;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;padding:16px;display:flex;justify-content:center;background:#100c07}
+  .sheet{background:#fff;color:#161616;width:100%;max-width:780px;padding:26px 28px;border-radius:4px;align-self:flex-start}
+  .sheet *{box-sizing:border-box}
+  .sheet h1{font-size:20px;margin:0 0 2px}
+  .sheet h3{font-size:13px;margin:16px 0 5px;border-bottom:2px solid #222;padding-bottom:3px;text-transform:uppercase;letter-spacing:.04em}
+  .sheet table{width:100%;border-collapse:collapse;margin:5px 0;table-layout:fixed}
+  .sheet th,.sheet td{border:1px solid #9a9a9a;padding:5px 7px;font-size:12px;text-align:left;vertical-align:top;word-break:break-word}
+  .sheet th{background:#ededed;font-weight:600;font-size:10.5px;text-transform:uppercase;letter-spacing:.03em}
+  .sheet td.blank{background:#fafafa}
+  .sheet .meta{display:flex;flex-wrap:wrap;gap:6px 22px;font-size:12px;margin:6px 0}
+  .sheet .meta b{font-size:10px;color:#666;text-transform:uppercase;letter-spacing:.04em;display:block;font-weight:600}
+  .sheet .chips{font-size:12px;margin:8px 0}
+  .sheet .chips span{margin-right:16px;white-space:nowrap;display:inline-block}
+  .sheet .grid2{display:grid;grid-template-columns:1fr 1fr;gap:22px}
+  .sheet .notebox{border:1px solid #9a9a9a;border-radius:4px;min-height:70px;margin-top:4px}
+  .sheet .score{letter-spacing:4px;font-size:13px;color:#444}
+  .sheet-page{margin-bottom:26px}
+  .sheet .sub{color:#666;font-size:11px}
+  @media(max-width:680px){ .sheet .grid2{grid-template-columns:1fr;gap:0} .sheet{padding:18px 16px} }
+
+  @media print{
+    html,body{background:#fff!important}
+    .app{display:none!important}
+    .sheet-overlay{position:static!important;display:block!important;height:auto!important;background:#fff!important;padding:0!important}
+    .sheet-toolbar{display:none!important}
+    .sheet-scroll{overflow:visible!important;padding:0!important;display:block!important}
+    .sheet{box-shadow:none!important;max-width:none!important;width:100%!important;padding:0!important}
+    .sheet-page{page-break-after:always}
+  }
+  footer{text-align:center;color:var(--dim);font-size:11px;margin-top:30px;line-height:1.7}
+</style>
+</head>
+<body>
+<div class="app">
+
+<header>
+  <div class="eyebrow" id="eyebrow">Homebrew · 20 styles</div>
+  <h1 id="title">Brew<span>Card</span></h1>
+  <div class="style-line" id="styleLine">Pick a style — the whole recipe rebuilds</div>
+</header>
+
+<div class="wrap">
+  <div class="toggle" id="catToggle" style="margin-top:18px">
+    <button data-cat="beer" class="on">🍺 Beer</button>
+    <button data-cat="spirit">🍸 Spirits &amp; liqueurs</button>
+  </div>
+  <div id="beerView">
+  <div class="selector">
+    <select id="picker"></select>
+  </div>
+  <div class="desc" id="desc"></div>
+
+  <div class="suggest">
+    <button class="suggest-head" id="suggestToggle">🔍 Find a style from what I have <span id="suggestCaret">▴</span></button>
+    <div class="suggest-body" id="suggestBody">
+      <p class="suggest-hint">Tap what you've got in the cupboard — I'll rank the closest styles and show what you're still missing.</p>
+      <div class="photo-add">
+        <button class="photo-btn" id="cameraBtn">📷 Take photo</button>
+        <button class="photo-btn" id="uploadBtn" style="background:var(--gold);color:var(--bg)">🖼️ Upload photo</button>
+        <input type="file" accept="image/*" capture="environment" multiple id="cameraInput" hidden>
+        <input type="file" accept="image/*" multiple id="uploadInput" hidden>
+        <span class="photo-status" id="photoStatus">Snap a new photo or upload one from your phone — I'll identify the ingredient.</span>
+      </div>
+      <div id="chipGroups"></div>
+      <div class="results" id="suggestResults"></div>
+    </div>
+  </div>
+
+  <div class="toggle" id="modeToggle">
+    <button data-mode="grain" class="on">All-grain</button>
+    <button data-mode="extract">Extract (LME)</button>
+  </div>
+
+  <div class="batch">
+    <div class="batch-top">
+      <span class="batch-label">Volume in fermenter</span>
+      <span class="batch-val"><span id="vol">20</span><small> L</small></span>
+    </div>
+    <input type="range" id="slider" min="5" max="50" step="1" value="20">
+    <div class="presets" id="presets">
+      <button class="preset" data-v="10">10 L</button>
+      <button class="preset on" data-v="20">20 L</button>
+      <button class="preset" data-v="23">23 L</button>
+      <button class="preset" data-v="30">30 L</button>
+    </div>
+  </div>
+
+  <div class="stats" id="stats"></div>
+
+  <div class="section">
+    <div class="sec-head"><span class="sec-num">1</span><h2>Ingredients</h2></div>
+    <div id="grains"></div>
+    <div id="hops"></div>
+    <div class="row" id="yeastRow"><div class="name">Yeast<small id="yeastNote"></small></div><div class="amt" id="yeast"></div></div>
+    <div class="note" id="waterNote"></div>
+    <div id="editPanel" hidden></div>
+    <div class="list-actions">
+      <button class="mini-btn" id="editToggle">✎ Edit / use what I have</button>
+      <button class="mini-btn gold" id="dlOne">⬇️ Download shopping list</button>
+      <button class="mini-btn" id="addCart">➕ Add to combined list</button>
+      <button class="mini-btn" id="brewSheet">🧾 Brew sheet (PDF)</button>
+    </div>
+    <div class="cart" id="cart" hidden></div>
+  </div>
+
+  <div class="section">
+    <div class="sec-head"><span class="sec-num">2</span><h2 id="procHead">Mash schedule</h2></div>
+    <div id="mash"></div>
+    <div class="note" id="mashNote"></div>
+  </div>
+
+  <div class="section">
+    <div class="sec-head"><span class="sec-num">3</span><h2 id="boilHead">Boil · 60 min</h2></div>
+    <div class="timer-card">
+      <div class="clock" id="clock">60:00</div>
+      <div class="clock-label" id="clock-label">drag the dial to start the boil</div>
+      <input type="range" class="boil-knob" id="boilKnob" min="0" max="60" step="0.5" value="0" aria-label="boil progress">
+      <div class="knob-scale"><span>start</span><span id="knobMax">60 min</span></div>
+      <div class="hop-schedule" id="hopSched"></div>
+    </div>
+    <div class="note">Drag the dial to set where you are in the boil — the clock counts down the time left and each phase ticks off as you pass it. Tap a phase to tick it by hand. Whirlpool and dry-hop additions are listed in the ingredients, not here.</div>
+    <div class="chill-card">
+      <div class="chill-row">
+        <div><div class="chill-title">Chill timer</div><div class="chill-sub" id="chillHint">tap the clock to start</div></div>
+        <div class="chill-clock" id="chillClock">00:00</div>
+      </div>
+      <div class="chill-note">After flame-out, cool the wort to pitching temp as fast as you can (chiller or ice bath). This counts how long you've been chilling.</div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="sec-head"><span class="sec-num">4</span><h2>Fermentation</h2></div>
+    <div class="ferm" id="ferm"></div>
+  </div>
+
+  <div class="section">
+    <div class="sec-head"><span class="sec-num">5</span><h2>Brew day, step by step</h2></div>
+    <div class="walk" id="walk"></div>
+  </div>
+
+  <div class="section">
+    <div class="sec-head"><span class="sec-num">6</span><h2>Brew log</h2></div>
+    <div class="log-card">
+      <div class="log-row">
+        <input list="logLabels" id="logLabel" placeholder="reading (OG, Temp, pH…)" autocomplete="off">
+        <input id="logValue" placeholder="value (e.g. 1.048)" autocomplete="off">
+        <button class="mini-btn gold" id="logAddData">+ Reading</button>
+      </div>
+      <datalist id="logLabels">
+        <option value="OG"></option><option value="FG"></option><option value="Gravity"></option>
+        <option value="Mash temp"></option><option value="Boil volume"></option><option value="Pitch temp"></option>
+        <option value="Ferment temp"></option><option value="pH"></option><option value="Final volume"></option>
+        <option value="Efficiency"></option><option value="ABV"></option><option value="Date"></option>
+      </datalist>
+      <div class="log-row">
+        <textarea id="logNote" rows="2" placeholder="note… (type, or tap 🎤 to dictate)"></textarea>
+        <div class="log-note-btns">
+          <button class="mini-btn" id="logMic" title="Voice note — record &amp; transcribe">🎤</button>
+          <button class="mini-btn" id="logAddNote">+ Note</button>
+        </div>
+      </div>
+      <div class="log-list" id="logList"></div>
+      <div class="list-actions">
+        <button class="mini-btn" id="logExport">⬇️ Export / copy</button>
+        <button class="mini-btn" id="logClear">🗑 Clear</button>
+      </div>
+      <div class="log-hint" id="logPersistHint"></div>
+    </div>
+  </div>
+  </div><!-- /beerView -->
+
+  <div id="spiritView" hidden>
+    <div class="selector"><select id="spiritPicker"></select></div>
+    <div class="desc" id="sDesc"></div>
+
+    <div class="batch">
+      <div class="batch-top">
+        <span class="batch-label">Finished volume</span>
+        <span class="batch-val"><span id="sVol">1</span><small> L</small></span>
+      </div>
+      <input type="range" id="sSlider" min="0.25" max="5" step="0.25" value="1">
+      <div class="presets" id="sPresets">
+        <button class="preset" data-v="0.5">0.5 L</button>
+        <button class="preset on" data-v="1">1 L</button>
+        <button class="preset" data-v="2">2 L</button>
+        <button class="preset" data-v="3">3 L</button>
+      </div>
+    </div>
+
+    <div class="stats" id="sStats"></div>
+
+    <div class="section">
+      <div class="sec-head"><span class="sec-num">1</span><h2>Ingredients</h2></div>
+      <div class="row"><div class="name">Base spirit<small id="sBaseNote"></small></div><div class="amt" id="sBase"></div></div>
+      <div id="sIngredients"></div>
+      <div class="note" id="sNote"></div>
+      <div class="list-actions">
+        <button class="mini-btn gold" id="sDlOne">⬇️ Download shopping list</button>
+        <button class="mini-btn" id="sCard">🧾 Recipe card (PDF)</button>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="sec-head"><span class="sec-num">2</span><h2>Method</h2></div>
+      <div class="ferm" id="sMethod"></div>
+    </div>
+
+    <div class="section">
+      <div class="sec-head"><span class="sec-num">3</span><h2>Tips</h2></div>
+      <div class="note" id="sTips"></div>
+    </div>
+  </div>
+
+  <footer>
+    Stats stay constant per style; quantities rescale with batch size.<br>
+    Recipes are solid starting points — tune to your system &amp; taste.<br>
+    Cheers! 🍺
+  </footer>
+</div>
+
+<div class="modal" id="listModal" hidden>
+  <div class="modal-box">
+    <div class="modal-head"><span id="modalTitle">Shopping list</span><button id="modalClose" title="close">✕</button></div>
+    <textarea id="modalText" readonly></textarea>
+    <div class="modal-actions">
+      <button class="mini-btn gold" id="modalCopy">📋 Copy</button>
+      <button class="mini-btn" id="modalDownload">⬇️ Download .txt</button>
+    </div>
+    <div class="modal-hint">If your device blocks downloads, tap Copy (or select the text above) and paste it into Notes.</div>
+  </div>
+</div>
+
+</div>
+
+<div class="sheet-overlay" id="sheetOverlay" hidden>
+  <div class="sheet-toolbar">
+    <button class="mini-btn gold" id="sheetPrint">🖨️ Print / Save PDF</button>
+    <button class="mini-btn" id="sheetClose">Close</button>
+  </div>
+  <div class="sheet-scroll"><div class="sheet" id="sheetBody"></div></div>
+</div>
+
+<script>
+// === CONFIG: path to your deployed recognition function (works on Cloudflare Pages / Netlify out of the box) ===
+const API_ENDPOINT = "/api/identify";
+
+/* ---- shared templates (at 20 L base) ---- */
+const M = {
+  pilsStep:[{t:52,n:'Protein rest',d:'Proteases trim large proteins — head retention & clarity.',m:15},{t:63,n:'Beta-amylase',d:'Makes fermentable maltose — your dryness dial.',m:30},{t:72,n:'Alpha-amylase',d:'Builds body with dextrins; finishes conversion.',m:30},{t:78,n:'Mash out',d:'Deactivates enzymes, thins wort for the sparge.',m:5}],
+  lagerSacc:[{t:64,n:'Beta-amylase',d:'Fermentable sugars for a crisp finish.',m:40},{t:72,n:'Alpha-amylase',d:'Body and full conversion.',m:20},{t:78,n:'Mash out',d:'Locks the sugar profile, thins for sparge.',m:5}],
+  single66:[{t:66,n:'Saccharification',d:'Single infusion — balanced fermentables and body.',m:60},{t:78,n:'Mash out',d:'Stops enzymes, eases the sparge.',m:5}],
+  single67:[{t:67,n:'Saccharification',d:'Slightly higher single rest — rounder, maltier body.',m:60},{t:78,n:'Mash out',d:'Stops enzymes, eases the sparge.',m:5}],
+  hefe:[{t:44,n:'Ferulic acid rest',d:'Frees ferulic acid — fuel for clove phenols.',m:15},{t:64,n:'Beta-amylase',d:'Fermentables and a dry, spritzy finish.',m:30},{t:72,n:'Alpha-amylase',d:'Conversion and body.',m:30},{t:78,n:'Mash out',d:'Stops enzymes.',m:5}]
+};
+const F = {
+  lager:[{h:'Primary',meta:'10–12 °C · 10–14 days',p:'Cold and slow until near final gravity — the clean lager core.'},{h:'Diacetyl rest',meta:'18 °C · 2–3 days',p:'Warm up at the end so yeast clears buttery diacetyl.'},{h:'Lagering',meta:'0–2 °C · 4–6 weeks',p:'Cold conditioning for a round, clear beer. Patience pays.'},{h:'Packaging',meta:'~2.4 vol CO₂',p:'Prime or force-carbonate, then a week or two cold.'}],
+  lagerLong:[{h:'Primary',meta:'9–11 °C · 14–18 days',p:'Strong, slow, cold fermentation.'},{h:'Diacetyl rest',meta:'18 °C · 3 days',p:'Clean-up rest before cold conditioning.'},{h:'Lagering',meta:'0–2 °C · 8–12 weeks',p:'Long lagering smooths the alcohol and malt.'},{h:'Packaging',meta:'~2.4 vol CO₂',p:'Prime or force-carbonate.'}],
+  ale:[{h:'Primary',meta:'18–20 °C · 7–10 days',p:'Ferment until gravity is stable over 2–3 days.'},{h:'Conditioning',meta:'18 °C · 3–5 days',p:'Let yeast clean up before packaging.'},{h:'Cold crash',meta:'2–4 °C · 1–2 days',p:'Optional — drops yeast and haze for clearer beer.'},{h:'Packaging',meta:'~2.2 vol CO₂',p:'Prime or force-carbonate.'}],
+  hazy:[{h:'Primary',meta:'19–21 °C · 5–7 days',p:'Active fermentation; keep it warm and quick.'},{h:'Dry hop',meta:'18 °C · 3–4 days',p:'Add dry hops near the end of fermentation for biotransformation and aroma.'},{h:'Brief cold',meta:'8–10 °C · 1–2 days',p:'Light cold rest — keep oxygen out to protect haze and aroma.'},{h:'Packaging',meta:'~2.4 vol CO₂',p:'Package quickly; hazy IPA is best fresh.'}],
+  belgian:[{h:'Primary',meta:'20 °C rising to 24–26 °C · 10–14 days',p:'Pitch cool, then let it free-rise to build fruity, spicy esters.'},{h:'Conditioning',meta:'20 °C · 1 week',p:'Let the strong beer settle and mellow.'},{h:'Packaging',meta:'~2.6–3.0 vol CO₂ (high)',p:'Belgian styles are well carbonated — bottle-condition if you can.'}],
+  wheat:[{h:'Primary',meta:'18–20 °C · 7–10 days',p:'Warmer end pushes banana esters; cooler keeps it crisp and clovey.'},{h:'Conditioning',meta:'3–5 days',p:'Short — wheat beers shine fresh and a touch hazy.'},{h:'Packaging',meta:'~3.0 vol CO₂ (high)',p:'Carbonate high for that fluffy head.'}],
+  big:[{h:'Primary',meta:'19–21 °C · 14–21 days',p:'Big beer, big healthy pitch. Ferment until truly done.'},{h:'Conditioning',meta:'18 °C · 2 weeks',p:'Long warm rest to attenuate fully and smooth fusel notes.'},{h:'Cold age',meta:'2–6 °C · 1–3 months',p:'Extended aging rounds out the alcohol and dark malts.'},{h:'Packaging',meta:'~2.0 vol CO₂',p:'Lower carbonation suits a big, rich beer.'}]
+};
+
+/* ---- 20 styles (quantities @ 20 L) ----
+   grain: {n,note,kg, mash:true/false}  mash:false = sugar/spice (no strike water, may be boil add)
+   hop:   {n,tag,t,g}  t = minutes from end of boil; t:'whirlpool' or 'dry hop' = not in boil timer  */
+const BEERS=[
+ {id:'czech-pils',name:'Czech Pilsner',style:'Czech Premium Pale Lager · ~4 SRM, golden',desc:'The original golden lager. Soft water, all Pilsner malt, generous Saaz, and long cold lagering. Clean, bready, floral-spicy.',
+  og:'1.048',fg:'1.013',abv:'4.5%',ibu:'38',srm:'4',type:'lager',pitch:'10–12 °C',
+  grains:[{n:'Pilsner malt (Czech)',note:'Bohemian, floor-malted · 100% base',kg:4.3}],
+  hops:[{n:'Saaz',tag:'bitter',t:60,g:30},{n:'Saaz',tag:'flavor',t:30,g:20},{n:'Saaz',tag:'aroma',t:15,g:25}],
+  yeast:'Wyeast 2001 / WLP800 / W-34/70',ynote:'Czech lager strain; build a big starter',
+  water:'Very soft — low sulfate & chloride. Cut hard water with RO/distilled.',mash:M.pilsStep,boil:60,ferm:F.lager},
+
+ {id:'german-pils',name:'German Pils',style:'German Pilsner · ~3 SRM, pale gold',desc:'Crisper, drier and more bitter than the Czech version. Noble hops and a snappy, bitter finish.',
+  og:'1.046',fg:'1.010',abv:'4.7%',ibu:'35',srm:'3',type:'lager',pitch:'10–12 °C',
+  grains:[{n:'Pilsner malt (German)',note:'100% base',kg:4.5}],
+  hops:[{n:'Hallertau',tag:'bitter',t:60,g:25},{n:'Tettnang',tag:'flavor',t:20,g:20},{n:'Hallertau',tag:'aroma',t:5,g:25}],
+  yeast:'W-34/70 / WLP830',ynote:'German lager strain',
+  water:'Soft, low minerals; a touch of sulfate sharpens the bitterness.',mash:M.lagerSacc,boil:60,ferm:F.lager},
+
+ {id:'peroni',name:'Italian Lager (Peroni Nastro Azzurro-style)',style:'Italian Pale Lager · ~3 SRM, pale gold',desc:'Closest-to-real clone of Italy\u2019s benchmark pale lager — two-row spring barley plus Italian maize for a prosecco-pale, crisp, dry beer. The real one uses Peroni\u2019s exclusive Nostrano dell\u2019Isola maize, Saaz + Hallertau Magnum hops, and very soft, low-carbonate water.',
+  og:'1.048',fg:'1.008',abv:'5.1%',ibu:'25',srm:'3',type:'lager',pitch:'10–12 °C',
+  grains:[{n:'Pilsner malt (2-row spring barley)',note:'base',kg:3.8},{n:'Flaked maize (or Nostrano polenta)',note:'~19% of grist — flaked is ready to mash; raw Nostrano polenta must be cereal-mashed first',kg:0.9}],
+  hops:[{n:'Hallertau Magnum',tag:'bitter',t:60,g:12},{n:'Saaz',tag:'flavor',t:30,g:15},{n:'Saaz',tag:'aroma',t:15,g:18}],
+  yeast:'W-34/70 / WLP830',ynote:'Clean German/Euro lager strain',
+  water:'Very soft, low-carbonate water — Peroni\u2019s house profile for a clean, crisp finish.',
+  tip:'Closest to the real thing: use Italian Nostrano dell\u2019Isola heritage polenta (e.g. Borgoluce). Peroni\u2019s actual brewing grain is contracted exclusively to them, so this food-grade landrace is the nearest you can buy. Raw polenta is NOT pre-gelatinized, so you must cereal-mash it: mix the polenta with ~10% of the crushed Pilsner malt and ~3 L water per kg of corn, hold ~67 °C for 10 min (the malt\u2019s enzymes thin it), then boil 20–30 min stirring constantly to avoid scorching; stir it back into the main mash to settle at 64 °C. Even in EXTRACT mode you can get the real corn character, but corn won\u2019t convert on its own — do a small partial mash: gelatinize the polenta, then hold it with ~500 g Pilsner malt at ~67 °C for 30 min so it converts, strain, and add the liquor to a light Pilsen LME. Always finish with very soft, low-carbonate water, Saaz + Hallertau Magnum hops, a clean lager yeast, and 4–6 weeks cold lagering for the crisp, prosecco-pale result.',
+  mash:[{t:'boil',n:'Cereal mash (raw maize only)',d:'Using raw Nostrano / polenta? Boil it with ~10% of the crushed malt in water 20–30 min to gelatinize the starch, then stir into the main mash. Skip this entirely if you use pre-gelatinized flaked maize. Thermomix method: combine polenta + ~10% crushed malt + water (fill ≤⅔ of the bowl), run 67 °C / 10 min / speed 1 reverse, then 20 min at Varoma/boil temp / speed 1 reverse — the gentle constant stirring stops scorching; then stir it into the main mash. For a full batch, split it into two passes.',m:'20–30'},{t:64,n:'Beta-amylase',d:'Fermentable sugars for a crisp, dry finish.',m:40},{t:72,n:'Alpha-amylase',d:'Body and full conversion.',m:20},{t:78,n:'Mash out',d:'Locks the sugar profile, thins for sparge.',m:5}],
+  boil:60,ferm:F.lager},
+
+ {id:'ichnusa',name:'Sardinian Lager (Ichnusa-style)',style:'European Pale Lager · ~4 SRM, gold',desc:'Sardinian-style pale lager — soft, bready and malt-forward rather than bone-dry, with just a touch of maize and gentle German noble hops. Leave it unfiltered (Non Filtrata) for a hazier, fuller, slightly fruitier glass.',
+  og:'1.046',fg:'1.010',abv:'4.7%',ibu:'19',srm:'4',type:'lager',pitch:'10–12 °C',
+  grains:[{n:'Pilsner malt',note:'base',kg:4.1},{n:'Vienna malt',note:'golden, bready depth',kg:0.4},{n:'Flaked maize (corn)',note:'just ~5% for a light, soft edge',kg:0.25}],
+  hops:[{n:'Hallertau Mittelfrüh',tag:'bitter',t:60,g:20},{n:'Hallertau Mittelfrüh',tag:'aroma',t:15,g:12}],
+  yeast:'W-34/70',ynote:'Clean lager strain',
+  water:'Soft, balanced — a touch rounder than the Peroni profile to support the bready malt.',
+  tip:'How it differs from the Peroni clone: Ichnusa leans bready and malty rather than crisp-dry, so it uses far less corn (~5% vs ~19%), a little Vienna malt for golden bready depth, and soft German Hallertau Mittelfrüh instead of the Saaz + Hallertau Magnum combo. For the Non Filtrata version, skip all fining and filtering and bottle with a little yeast still in suspension — you get a hazy, fuller, slightly fruitier beer. Still a lager, so ferment cold and give it a few weeks of lagering.',
+  mash:M.lagerSacc,boil:60,ferm:F.lager},
+
+ {id:'helles',name:'Munich Helles',style:'Munich Helles · ~4 SRM, gold',desc:'Malt-forward Bavarian lager. Soft, bready, lightly sweet, with just enough hops to balance.',
+  og:'1.048',fg:'1.010',abv:'4.9%',ibu:'18',srm:'4',type:'lager',pitch:'10–12 °C',
+  grains:[{n:'Pilsner malt',note:'base',kg:4.0},{n:'Munich malt',note:'adds soft malt depth',kg:0.5}],
+  hops:[{n:'Hallertau',tag:'bitter',t:60,g:25},{n:'Hallertau',tag:'aroma',t:15,g:10}],
+  yeast:'WLP838 / W-34/70',ynote:'Clean German lager strain',
+  water:'Soft, low sulfate to keep it malty.',mash:M.lagerSacc,boil:60,ferm:F.lager},
+
+ {id:'vienna',name:'Vienna Lager',style:'Vienna Lager · ~10 SRM, amber',desc:'Smooth amber lager built on Vienna malt — toasty, lightly sweet, clean and balanced.',
+  og:'1.050',fg:'1.012',abv:'5.0%',ibu:'22',srm:'10',type:'lager',pitch:'10–12 °C',
+  grains:[{n:'Vienna malt',note:'base — toasty',kg:3.5},{n:'Munich malt',note:'depth',kg:1.0},{n:'Pilsner malt',note:'',kg:0.5}],
+  hops:[{n:'Hallertau',tag:'bitter',t:60,g:28},{n:'Saaz',tag:'aroma',t:15,g:15}],
+  yeast:'W-34/70 / WLP920',ynote:'Clean lager strain',
+  water:'Moderately soft, balanced.',mash:M.lagerSacc,boil:60,ferm:F.lager},
+
+ {id:'marzen',name:'Märzen / Oktoberfest',style:'Märzen · ~12 SRM, deep amber',desc:'The classic Oktoberfest lager — rich toasty malt, clean and dangerously smooth.',
+  og:'1.056',fg:'1.014',abv:'5.6%',ibu:'24',srm:'12',type:'lager',pitch:'10–12 °C',
+  grains:[{n:'Munich malt',note:'base',kg:3.0},{n:'Vienna malt',note:'toast',kg:2.0},{n:'Pilsner malt',note:'',kg:1.0}],
+  hops:[{n:'Hallertau',tag:'bitter',t:60,g:35},{n:'Hallertau',tag:'aroma',t:15,g:15}],
+  yeast:'WLP820 / W-34/70',ynote:'Oktoberfest lager strain; big starter',
+  water:'Soft to moderate, low sulfate.',mash:M.lagerSacc,boil:60,ferm:F.lagerLong},
+
+ {id:'dunkel',name:'Munich Dunkel',style:'Munich Dunkel · ~18 SRM, brown',desc:'Dark Bavarian lager — bready, melanoidin-rich Munich malt with gentle chocolate notes, no roast bite.',
+  og:'1.052',fg:'1.013',abv:'5.1%',ibu:'22',srm:'18',type:'lager',pitch:'10–12 °C',
+  grains:[{n:'Munich malt',note:'base — the star',kg:4.5},{n:'Pilsner malt',note:'',kg:0.8},{n:'Carafa Special II',note:'color, no harsh roast',kg:0.15}],
+  hops:[{n:'Hallertau',tag:'bitter',t:60,g:28}],
+  yeast:'W-34/70 / WLP833',ynote:'Clean German lager strain',
+  water:'Soft, low sulfate.',mash:M.lagerSacc,boil:60,ferm:F.lager},
+
+ {id:'schwarz',name:'Schwarzbier',style:'Schwarzbier · ~25 SRM, black',desc:'Black lager that drinks light — smooth dark malt with a clean, crisp lager finish.',
+  og:'1.050',fg:'1.012',abv:'5.0%',ibu:'26',srm:'25',type:'lager',pitch:'10–12 °C',
+  grains:[{n:'Pilsner malt',note:'base',kg:2.5},{n:'Munich malt',note:'',kg:1.8},{n:'Carafa Special III',note:'smooth black color',kg:0.35},{n:'Caramunich',note:'light caramel',kg:0.3}],
+  hops:[{n:'Hallertau',tag:'bitter',t:60,g:30},{n:'Hallertau',tag:'aroma',t:15,g:12}],
+  yeast:'W-34/70',ynote:'Clean lager strain',
+  water:'Soft, balanced.',mash:M.lagerSacc,boil:60,ferm:F.lager},
+
+ {id:'doppelbock',name:'Doppelbock',style:'Doppelbock · ~18 SRM, deep brown',desc:'Strong, malty Bavarian lager — rich melanoidin and toast, low hops, warming. "Liquid bread."',
+  og:'1.074',fg:'1.018',abv:'7.4%',ibu:'24',srm:'18',type:'lager',pitch:'9–11 °C',
+  grains:[{n:'Munich malt',note:'base',kg:5.5},{n:'Pilsner malt',note:'',kg:2.5},{n:'Caramunich',note:'caramel depth',kg:0.5},{n:'Carafa Special II',note:'color',kg:0.15}],
+  hops:[{n:'Hallertau',tag:'bitter',t:60,g:40}],
+  yeast:'WLP833 / W-34/70',ynote:'Bock lager strain; very large starter',
+  water:'Soft, low sulfate.',mash:M.lagerSacc,boil:60,ferm:F.lagerLong},
+
+ {id:'apa',name:'American Pale Ale',style:'American Pale Ale · ~7 SRM, gold-amber',desc:'Easygoing hop-forward ale — citrus and pine over a light caramel malt base.',
+  og:'1.050',fg:'1.012',abv:'5.0%',ibu:'38',srm:'7',type:'ale',pitch:'18–20 °C',
+  grains:[{n:'Pale 2-row',note:'base',kg:4.5},{n:'Crystal 40',note:'light caramel',kg:0.4}],
+  hops:[{n:'Cascade',tag:'bitter',t:60,g:15},{n:'Centennial',tag:'flavor',t:15,g:25},{n:'Cascade',tag:'aroma',t:5,g:30},{n:'Cascade',tag:'dry hop',t:'dry hop',g:30}],
+  yeast:'US-05 / WLP001',ynote:'Clean American ale strain',
+  water:'Moderate sulfate (~150 ppm) to sharpen hops.',mash:M.single66,boil:60,ferm:F.ale},
+
+ {id:'ipa',name:'American IPA',style:'West Coast IPA · ~7 SRM, gold',desc:'Bold, bitter, resinous. Dry finish, big citrus-pine hop punch from late and dry-hop additions.',
+  og:'1.064',fg:'1.012',abv:'6.8%',ibu:'65',srm:'7',type:'ale',pitch:'18–20 °C',
+  grains:[{n:'Pale 2-row',note:'base',kg:5.8},{n:'Munich malt',note:'',kg:0.4},{n:'Crystal 40',note:'light caramel',kg:0.3}],
+  hops:[{n:'Columbus',tag:'bitter',t:60,g:20},{n:'Cascade',tag:'flavor',t:15,g:25},{n:'Centennial',tag:'aroma',t:5,g:30},{n:'Citra + Simcoe',tag:'dry hop',t:'dry hop',g:60}],
+  yeast:'US-05 / WLP001',ynote:'Clean American ale strain',
+  water:'High sulfate (~250 ppm), low chloride — crisp bitterness.',mash:M.single66,boil:60,ferm:F.ale},
+
+ {id:'neipa',name:'Hazy IPA',style:'New England IPA · ~5 SRM, hazy gold',desc:'Soft, juicy and pillowy. Low bitterness, huge late and dry-hop aroma, oats and wheat for body and haze.',
+  og:'1.062',fg:'1.014',abv:'6.3%',ibu:'40',srm:'5',type:'ale',pitch:'19–21 °C',
+  grains:[{n:'Pale 2-row',note:'base',kg:5.0},{n:'White wheat malt',note:'haze & body',kg:0.8},{n:'Flaked oats',note:'soft mouthfeel',kg:0.8}],
+  hops:[{n:'Citra',tag:'bitter',t:60,g:10},{n:'Mosaic',tag:'whirlpool',t:'whirlpool',g:40},{n:'Citra',tag:'whirlpool',t:'whirlpool',g:40},{n:'Citra + Mosaic',tag:'dry hop',t:'dry hop',g:80}],
+  yeast:'Verdant / London Ale III',ynote:'Fruity, low-attenuation hazy strain',
+  water:'High chloride (~150 ppm), low sulfate — soft, round mouthfeel.',mash:M.single67,boil:60,ferm:F.hazy},
+
+ {id:'amber',name:'American Amber Ale',style:'Amber Ale · ~14 SRM, amber-red',desc:'Caramel-malt backbone balanced by citrusy American hops. Smooth, sessionable, crowd-pleasing.',
+  og:'1.052',fg:'1.013',abv:'5.1%',ibu:'30',srm:'14',type:'ale',pitch:'18–20 °C',
+  grains:[{n:'Pale 2-row',note:'base',kg:4.5},{n:'Crystal 60',note:'caramel & color',kg:0.5},{n:'Munich malt',note:'',kg:0.4}],
+  hops:[{n:'Cascade',tag:'bitter',t:60,g:20},{n:'Cascade',tag:'flavor',t:15,g:25},{n:'Centennial',tag:'aroma',t:5,g:20}],
+  yeast:'US-05 / WLP001',ynote:'Clean American ale strain',
+  water:'Balanced sulfate/chloride.',mash:M.single66,boil:60,ferm:F.ale},
+
+ {id:'esb',name:'English ESB',style:'Extra Special Bitter · ~12 SRM, amber',desc:'Malty, balanced English ale — biscuit and caramel from Maris Otter, earthy-floral English hops.',
+  og:'1.054',fg:'1.014',abv:'5.2%',ibu:'35',srm:'12',type:'ale',pitch:'18–20 °C',
+  grains:[{n:'Maris Otter',note:'base — biscuity',kg:5.0},{n:'Crystal 60',note:'caramel',kg:0.5},{n:'Chocolate malt',note:'touch of color',kg:0.05}],
+  hops:[{n:'East Kent Goldings',tag:'bitter',t:60,g:35},{n:'East Kent Goldings',tag:'flavor',t:15,g:15},{n:'Fuggle',tag:'aroma',t:5,g:15}],
+  yeast:'WLP002 / S-04',ynote:'English ale strain — leaves some malt sweetness',
+  water:'Moderate sulfate (Burton-ish) for a firm bitterness.',mash:M.single67,boil:60,ferm:F.ale},
+
+ {id:'brown',name:'English Brown Ale',style:'English Brown · ~18 SRM, brown',desc:'Nutty, malty and mellow — caramel and light chocolate, low bitterness, very drinkable.',
+  og:'1.048',fg:'1.012',abv:'4.7%',ibu:'22',srm:'18',type:'ale',pitch:'18–20 °C',
+  grains:[{n:'Maris Otter',note:'base',kg:4.2},{n:'Crystal 60',note:'caramel',kg:0.4},{n:'Brown malt',note:'nutty',kg:0.2},{n:'Chocolate malt',note:'color & cocoa',kg:0.2}],
+  hops:[{n:'East Kent Goldings',tag:'bitter',t:60,g:28},{n:'Fuggle',tag:'aroma',t:10,g:10}],
+  yeast:'S-04 / WLP002',ynote:'English ale strain',
+  water:'Balanced, low sulfate.',mash:M.single67,boil:60,ferm:F.ale},
+
+ {id:'porter',name:'Robust Porter',style:'Porter · ~30 SRM, dark brown',desc:'Rich, roasty and smooth — chocolate and coffee notes balanced by caramel malt, restrained roast bitterness.',
+  og:'1.056',fg:'1.014',abv:'5.5%',ibu:'30',srm:'30',type:'ale',pitch:'18–20 °C',
+  grains:[{n:'Pale 2-row',note:'base',kg:4.5},{n:'Munich malt',note:'',kg:0.5},{n:'Crystal 60',note:'caramel',kg:0.4},{n:'Chocolate malt',note:'cocoa',kg:0.4},{n:'Black malt',note:'color & roast',kg:0.2}],
+  hops:[{n:'East Kent Goldings',tag:'bitter',t:60,g:35},{n:'Fuggle',tag:'flavor',t:15,g:15}],
+  yeast:'US-05 / S-04',ynote:'Clean or English ale strain',
+  water:'Balanced; a little chloride rounds the malt.',mash:M.single66,boil:60,ferm:F.ale},
+
+ {id:'stout',name:'Irish Dry Stout',style:'Dry Stout · ~35 SRM, black',desc:'Dry, roasty and light-bodied — the Guinness archetype. Coffee-like roasted barley, crisp bitter finish.',
+  og:'1.044',fg:'1.010',abv:'4.3%',ibu:'38',srm:'35',type:'ale',pitch:'18–20 °C',
+  grains:[{n:'Pale 2-row',note:'base',kg:3.5},{n:'Flaked barley',note:'body & head',kg:0.6},{n:'Roasted barley',note:'coffee, dry roast',kg:0.5}],
+  hops:[{n:'East Kent Goldings',tag:'bitter',t:60,g:40}],
+  yeast:'WLP004 / S-04',ynote:'Irish ale strain',
+  water:'Some sulfate for a dry, bitter finish.',mash:M.single66,boil:60,ferm:F.ale},
+
+ {id:'guinness',name:'Guinness Draught (clone)',style:'Irish Dry Stout · ~38 SRM, black',desc:'The iconic nitro stout — light-bodied and roasty with a creamy head and a faint sour tang. Coffee-like roasted barley, dry finish, low alcohol.',
+  og:'1.040',fg:'1.010',abv:'4.2%',ibu:'40',srm:'38',type:'ale',pitch:'18–20 °C',
+  grains:[{n:'Pale 2-row',note:'base',kg:2.7},{n:'Flaked barley',note:'body & creamy head',kg:0.6},{n:'Roasted barley',note:'the signature dry, coffee roast',kg:0.45}],
+  hops:[{n:'East Kent Goldings',tag:'bitter',t:60,g:45}],
+  yeast:'WLP004 / Wyeast 1084',ynote:'Irish ale strain — clean with a soft roast',
+  water:'Dublin-style hard, alkaline water suits the dark roast. For the authentic tang, blend in a splash of soured beer or a few drops of lactic acid at packaging.',
+  mash:M.single66,boil:60,ferm:[
+    {h:'Primary',meta:'18–20 °C · 5–7 days',p:'Ferments fast at this modest gravity — done when the reading is stable for 2–3 days.'},
+    {h:'Conditioning',meta:'18 °C · 3–4 days',p:'Short clean-up rest; dry stout is best fresh.'},
+    {h:'Carbonate low / nitro',meta:'~1.3–1.5 vol CO₂',p:'Guinness Draught is lightly carbonated and poured on a 70/30 CO₂/N₂ nitro mix for the creamy cascade. In bottles, prime lightly or use a nitro widget/can.'}
+  ]},
+
+ {id:'ris',name:'Imperial Stout',style:'Russian Imperial Stout · ~40 SRM, black',desc:'Huge, rich and warming — dark fruit, chocolate, roast and booze. A sipping beer that ages beautifully.',
+  og:'1.090',fg:'1.022',abv:'9.0%',ibu:'60',srm:'40',type:'ale',pitch:'19–21 °C',
+  grains:[{n:'Pale 2-row',note:'base',kg:7.5},{n:'Munich malt',note:'',kg:0.5},{n:'Crystal 80',note:'caramel/dark fruit',kg:0.6},{n:'Chocolate malt',note:'cocoa',kg:0.6},{n:'Roasted barley',note:'roast',kg:0.6},{n:'Black malt',note:'color',kg:0.3}],
+  hops:[{n:'Columbus',tag:'bitter',t:60,g:50},{n:'Columbus',tag:'flavor',t:15,g:20}],
+  yeast:'US-05 / WLP001',ynote:'Clean strain; huge starter or 2–3 packs',
+  water:'Balanced; the malt load buffers heavily.',mash:M.single66,boil:60,ferm:F.big},
+
+ {id:'hefe',name:'Hefeweizen',style:'Hefeweizen · ~4 SRM, hazy gold',desc:'Bavarian wheat ale — banana and clove from the yeast, fluffy head, soft and refreshing.',
+  og:'1.050',fg:'1.012',abv:'5.0%',ibu:'14',srm:'4',type:'wheat',pitch:'18–20 °C',
+  grains:[{n:'Wheat malt',note:'≥50% of grist',kg:2.5},{n:'Pilsner malt',note:'',kg:2.3}],
+  hops:[{n:'Hallertau',tag:'bitter',t:60,g:15}],
+  yeast:'WB-06 / Wyeast 3068',ynote:'Weizen yeast — drives banana/clove. Don\u2019t over-pitch.',
+  water:'Soft, low minerals.',mash:M.hefe,boil:60,ferm:F.wheat},
+
+ {id:'wit',name:'Belgian Witbier',style:'Witbier · ~4 SRM, hazy pale',desc:'Spiced Belgian wheat ale — coriander and orange peel over unmalted wheat, soft and zesty.',
+  og:'1.048',fg:'1.010',abv:'5.0%',ibu:'14',srm:'4',type:'wheat',pitch:'19–21 °C',
+  grains:[{n:'Pilsner malt',note:'base',kg:2.3},{n:'Flaked/unmalted wheat',note:'haze & tang',kg:2.0},{n:'Flaked oats',note:'silky body',kg:0.3},{n:'Coriander (crushed)',note:'add last 5 min',kg:0.025,mash:false},{n:'Bitter orange peel',note:'add last 5 min',kg:0.025,mash:false}],
+  hops:[{n:'Saaz',tag:'bitter',t:60,g:18}],
+  yeast:'WLP400 / T-58',ynote:'Belgian wit yeast — peppery, spicy',
+  water:'Soft, low minerals.',mash:M.single66,boil:60,ferm:F.wheat},
+
+ {id:'tripel',name:'Belgian Tripel',style:'Tripel · ~5 SRM, gold',desc:'Strong, pale and deceptively drinkable — fruity-spicy esters, dry finish, candi sugar lightens the body.',
+  og:'1.078',fg:'1.010',abv:'9.0%',ibu:'30',srm:'5',type:'belgian',pitch:'20 → 24 °C',
+  grains:[{n:'Pilsner malt',note:'base',kg:6.0},{n:'Clear candi sugar',note:'add to boil — dries it out',kg:0.6,mash:false}],
+  hops:[{n:'Saaz',tag:'bitter',t:60,g:35},{n:'Styrian Goldings',tag:'aroma',t:15,g:15}],
+  yeast:'WLP530 / Wyeast 3787',ynote:'Belgian abbey strain; pitch cool, free-rise',
+  water:'Soft, low minerals.',mash:M.single66,boil:60,ferm:F.belgian}
+];
+
+/* ---- state ---- */
+function cloneBeer(b){ return JSON.parse(JSON.stringify(b)); }
+let baseBeer = BEERS[0];
+let beer = cloneBeer(BEERS[0]), vol = 20, mode = 'grain';
+const BASE = 20;
+const LME_FACTOR = 0.75; // 1 kg mashed base grain ≈ 0.75 kg liquid malt extract
+const fmtKg = kg => kg>=1 ? kg.toFixed(2)+' kg' : Math.round(kg*1000)+' g';
+const fmtG  = g  => Math.round(g)+' g';
+const fmtL  = l  => '~'+l.toFixed(1)+' L';
+
+// classify a grain by name: base (mash), steep (specialty), adjunct (flaked/unmalted), sugar, spice
+function role(g){
+  if(g.mash===false){ return /candi|sugar/i.test(g.n) ? 'sugar' : 'spice'; }
+  const n = g.n.toLowerCase();
+  if(/crystal|caramel|caramunich|carapils|carafa|chocolate|black malt|roasted|roast/.test(n)) return 'steep';
+  if(/flaked|unmalted|oats|flaked barley/.test(n)) return 'adjunct';
+  return 'base';
+}
+// LME type by color
+function lmeType(){ const s=+beer.srm; return s<=6 ? 'Light / Pilsen LME' : s<=14 ? 'Amber LME' : 'Dark LME'; }
+function lmeKg(){ // base + adjunct grains (except maize, which is cereal-mashed) converted to extract
+  return beer.grains.filter(g=>['base','adjunct'].includes(role(g)) && grainToken(g.n)!=='maize').reduce((s,g)=>s+g.kg,0) * LME_FACTOR;
+}
+function steepGrains(){ return beer.grains.filter(g=>role(g)==='steep'); }
+function extras(){ return beer.grains.filter(g=>['sugar','spice'].includes(role(g))); }
+function maizeGrains(b){ b=b||beer; return b.grains.filter(g=>grainToken(g.n)==='maize'); }
+function hasFlaked(){ return beer.grains.some(g=>role(g)==='adjunct' && grainToken(g.n)!=='maize'); }
+
+function packsNum(){
+  if(beer.packs!=null){ const v=parseInt(beer.packs); if(!isNaN(v)&&v>=1) return v; }
+  let p = Math.max(1, Math.round(vol/10));
+  const ogNum = parseFloat(beer.og);
+  if(ogNum>=1.070) p += 1;
+  if(beer.type==='lager') p = Math.max(p, Math.round(vol/8));
+  return p;
+}
+function packsFor(){ const p=packsNum(); return p===1 ? '1 pack' : p+' packs'; }
+function totalGrainKg(){ return beer.grains.filter(g=>g.mash!==false).reduce((s,g)=>s+g.kg,0); }
+// Water model (litres), scaled to the chosen batch volume.
+// pre-boil = (target + kettle/trub loss) / (1 - boil-off fraction); boil-off ≈ 10%/hr of pre-boil.
+function waterVols(){
+  const k=vol/BASE;
+  const mashKg = beer.grains.filter(g=>g.mash!==false).reduce((s,g)=>s+g.kg,0)*k; // mashable grain (all-grain)
+  const steepKg = steepGrains().reduce((s,g)=>s+g.kg,0)*k;                          // specialty steeping grain (extract)
+  const losses = Math.max(0.5, vol*0.075);            // kettle + trub + chiller deadspace
+  const boilFrac = Math.min(0.5, 0.10*(beer.boil/60)); // ~10% of pre-boil per hour
+  const preBoil = (vol + losses)/(1 - boilFrac);
+  const boilOff = preBoil*boilFrac;
+  const strike = mashKg*3, absorb = mashKg*0.8;        // 3 L/kg mash; grain holds ~0.8 L/kg
+  const sparge = Math.max(0, preBoil - strike + absorb);
+  const steepWater = steepKg>0 ? Math.max(3, steepKg*3) : 0;
+  return {mashKg,steepKg,losses,boilFrac,preBoil,boilOff,strike,absorb,sparge,steepWater};
+}
+
+/* ---- populate picker once ---- */
+const picker = document.getElementById('picker');
+BEERS.forEach((b,i)=>{ const o=document.createElement('option'); o.value=i; o.textContent=b.name; picker.appendChild(o); });
+picker.addEventListener('change', e=>{ baseBeer=BEERS[+e.target.value]; beer=cloneBeer(baseBeer); resetTimer(); renderAll(); });
+
+/* ---- render ---- */
+function renderHeader(){
+  document.getElementById('eyebrow').textContent = beer.style.split(' · ')[0];
+  document.getElementById('title').innerHTML = beer.name.replace(/^(\S+)/, '$1').replace(/(\S+)$/, '<span>$1</span>');
+  // keep title simple if single word styling looks odd
+  document.getElementById('title').textContent = beer.name;
+  document.getElementById('styleLine').textContent = beer.style;
+  document.getElementById('desc').textContent = beer.desc;
+}
+function renderStats(){
+  document.getElementById('stats').innerHTML =
+    [['OG',beer.og],['FG',beer.fg],['ABV',beer.abv],['IBU',beer.ibu],['SRM',beer.srm]]
+    .map(([l,n])=>`<div class="stat"><div class="n">${n}</div><div class="l">${l}</div></div>`).join('');
+}
+function renderIngredients(){
+  const k = vol/BASE;
+  if(mode==='extract'){
+    let rows = `<div class="row"><div class="name">${lmeType()}<small>replaces the mashed barley — stir in off the heat</small></div><div class="amt">${fmtKg(lmeKg()*k)}</div></div>`;
+    maizeGrains().forEach(g=>{
+      rows += `<div class="row"><div class="name">${g.n} <span class="tag">partial mash</span><small>corn needs a small partial mash with base malt to convert — or omit it</small></div><div class="amt">${fmtKg(g.kg*k)}</div></div>`;
+    });
+    steepGrains().forEach(g=>{
+      rows += `<div class="row"><div class="name">${g.n} <span class="tag">steep</span><small>${g.note||'specialty grain'}</small></div><div class="amt">${fmtKg(g.kg*k)}</div></div>`;
+    });
+    extras().forEach(g=>{
+      const amt = g.kg<0.1 ? fmtG(g.kg*1000*k) : fmtKg(g.kg*k);
+      rows += `<div class="row"><div class="name">${g.n}<small>${g.note||''}</small></div><div class="amt">${amt}</div></div>`;
+    });
+    document.getElementById('grains').innerHTML = rows;
+  } else {
+    document.getElementById('grains').innerHTML = beer.grains.map(g=>{
+      const amt = g.mash===false && g.kg<0.1 ? fmtG(g.kg*1000*k) : fmtKg(g.kg*k);
+      return `<div class="row"><div class="name">${g.n}${g.note?`<small>${g.note}</small>`:''}</div><div class="amt">${amt}</div></div>`;
+    }).join('');
+  }
+  document.getElementById('hops').innerHTML = beer.hops.map(h=>{
+    const when = typeof h.t==='number' ? `added at ${h.t} min` : h.t;
+    return `<div class="row"><div class="name">${h.n} <span class="tag">${h.tag}</span><small>${when}</small></div><div class="amt">${fmtG(h.g*k)}</div></div>`;
+  }).join('');
+  document.getElementById('yeast').textContent = packsFor();
+  document.getElementById('yeastNote').textContent = beer.yeast + (beer.ynote?` · ${beer.ynote}`:'');
+  if(mode==='extract'){
+    const w=waterVols();
+    let txt = `<b>Extract brew — no mash, so no strike or sparge.</b> ${beer.water} `;
+    if(w.steepKg>0) txt += `Steep the specialty grains in <b style="color:var(--gold-bright)">${fmtL(w.steepWater)}</b> at ~67 °C and lift them out, then top up to a boil volume of <b style="color:var(--gold-bright)">${fmtL(w.preBoil)}</b> and stir in the ${lmeType()} off the heat. `;
+    else txt += `Heat about <b style="color:var(--gold-bright)">${fmtL(w.preBoil)}</b> of water to your boil volume and stir in the ${lmeType()} off the heat — no grains to steep. `;
+    txt += `You'll boil off ${fmtL(w.boilOff)}; after chilling, top up with cool, clean water to <b>${vol} L</b> in the fermenter (boiled a smaller, partial volume? just add the rest cold at the end).`;
+    if(maizeGrains().length) txt += ` The maize needs its own small partial mash (see the steps) — plain extract can't convert corn.`;
+    else if(hasFlaked()) txt += ` This recipe has flaked/unmalted grain that really wants mashing — the LME approximates it, but a small partial mash gets closer.`;
+    document.getElementById('waterNote').innerHTML = txt;
+  } else {
+    const w=waterVols();
+    document.getElementById('waterNote').innerHTML = `<b>Water.</b> ${beer.water} Mash with <b style="color:var(--gold-bright)">${fmtL(w.strike)}</b> strike water (~3 L/kg of grain), then <b style="color:var(--gold-bright)">sparge with ${fmtL(w.sparge)}</b> to reach a pre-boil volume of <b>${fmtL(w.preBoil)}</b>. The grain soaks up ${fmtL(w.absorb)}, the boil drives off ${fmtL(w.boilOff)}, and ~${w.losses.toFixed(1)} L stays behind as kettle/trub loss — leaving about <b>${vol} L</b> in the fermenter. That sparge is where most of the water goes in.`;
+  }
+}
+// ---- Ingredient editor: swap/edit/add/remove ingredients, deviating from the recipe (edits a clone; original style stays intact) ----
+let editing=false;
+function attr(s){ return String(s).replace(/"/g,'&quot;'); }
+function ferRowEdit(g,i){
+  return `<div class="ed-row" data-i="${i}" data-kind="g"><input class="ed-name" data-f="n" value="${attr(g.n)}" placeholder="fermentable"><input class="ed-amt" data-f="kg" type="number" step="0.01" inputmode="decimal" value="${g.kg}"><span class="ed-unit">kg</span><button class="ed-del" data-act="delg" title="remove">✕</button></div>`;
+}
+function hopRowEdit(h,i){
+  const tags=['bitter','flavor','aroma','whirlpool','dry hop'];
+  return `<div class="ed-row" data-i="${i}" data-kind="h"><input class="ed-name" data-f="n" value="${attr(h.n)}" placeholder="hop"><input class="ed-amt" data-f="g" type="number" step="1" inputmode="numeric" value="${h.g}"><span class="ed-unit">g</span><input class="ed-time" data-f="t" value="${attr(String(h.t))}" placeholder="min / whirlpool"><select class="ed-tag" data-f="tag">${tags.map(t=>`<option ${t===h.tag?'selected':''}>${t}</option>`).join('')}</select><button class="ed-del" data-act="delh" title="remove">✕</button></div>`;
+}
+function renderEdit(){
+  document.getElementById('editPanel').innerHTML =
+    `<div class="ed-block"><div class="ed-h">Fermentables <small>swap for what you have</small></div>${beer.grains.map(ferRowEdit).join('')}<button class="mini-btn" data-act="addg">+ add fermentable</button></div>`+
+    `<div class="ed-block"><div class="ed-h">Hops <small>name · grams · time · type</small></div>${beer.hops.map(hopRowEdit).join('')}<button class="mini-btn" data-act="addh">+ add hop</button></div>`+
+    `<div class="ed-block"><div class="ed-h">Yeast <small>strain &amp; number of packs</small></div><div class="ed-row"><input class="ed-name" id="edYeast" value="${attr(beer.yeast)}" placeholder="yeast"><input class="ed-amt" id="edPacks" type="number" min="1" step="1" inputmode="numeric" value="${packsNum()}"><span class="ed-unit">packs</span></div></div>`+
+    `<div class="note">You're editing your own version of this recipe — change anything to match what's in the house. The headline OG/FG/ABV/IBU stay as the style's reference; your measured numbers go in the brew log and on the sheet. Quantities still scale with batch size, and the shopping list, hop timer and brew sheet all follow your edits.</div>`+
+    `<div class="list-actions"><button class="mini-btn gold" data-act="done">✓ Done editing</button><button class="mini-btn" data-act="reset">↺ Reset to recipe</button></div>`;
+}
+function toggleEdit(on){
+  editing=on;
+  document.getElementById('editPanel').hidden=!on;
+  ['grains','hops','waterNote','yeastRow'].forEach(id=>{ const el=document.getElementById(id); if(el) el.style.display=on?'none':''; });
+  const t=document.getElementById('editToggle');
+  t.textContent = on?'✕ Close editor':'✎ Edit / use what I have'; t.classList.toggle('gold',on);
+  if(on) renderEdit(); else { renderIngredients(); buildHopSched(); renderTimer(); renderFerment(); renderWalk(); }
+}
+function exitEditUI(){ editing=false; const ep=document.getElementById('editPanel'); if(ep) ep.hidden=true; ['grains','hops','waterNote','yeastRow'].forEach(id=>{ const el=document.getElementById(id); if(el) el.style.display=''; }); const t=document.getElementById('editToggle'); if(t){ t.textContent='✎ Edit / use what I have'; t.classList.remove('gold'); } }
+document.getElementById('editToggle').addEventListener('click',()=>toggleEdit(!editing));
+function edUpdate(e){
+  const row=e.target.closest('.ed-row');
+  if(row && e.target.dataset.f){
+    const i=+row.dataset.i, f=e.target.dataset.f, kind=row.dataset.kind;
+    let val=e.target.value;
+    if(f==='kg'||f==='g') val=parseFloat(val)||0;
+    if(f==='t'){ const n=parseFloat(val); val=(val.trim()!=='' && !isNaN(n) && /^\s*-?\d/.test(val)) ? n : val.trim(); }
+    if(kind==='g') beer.grains[i][f]=val; else beer.hops[i][f]=val;
+    if(kind==='h'){ buildHopSched(); renderTimer(); }
+    renderWalk();
+  } else if(e.target.id==='edYeast'){ beer.yeast=e.target.value; renderFerment(); renderWalk(); }
+  else if(e.target.id==='edPacks'){ const v=parseInt(e.target.value); beer.packs=(isNaN(v)||v<1)?null:v; renderWalk(); }
+}
+const editPanel=document.getElementById('editPanel');
+editPanel.addEventListener('input',edUpdate);
+editPanel.addEventListener('change',edUpdate);
+editPanel.addEventListener('click',e=>{
+  const b=e.target.closest('[data-act]'); if(!b) return;
+  const act=b.dataset.act;
+  if(act==='addg'){ beer.grains.push({n:'New malt',note:'',kg:0.5}); renderEdit(); }
+  else if(act==='addh'){ beer.hops.push({n:'New hop',tag:'aroma',t:10,g:10}); renderEdit(); buildHopSched(); renderTimer(); }
+  else if(act==='delg'){ const r=b.closest('.ed-row'); if(r){ beer.grains.splice(+r.dataset.i,1); renderEdit(); } }
+  else if(act==='delh'){ const r=b.closest('.ed-row'); if(r){ beer.hops.splice(+r.dataset.i,1); renderEdit(); buildHopSched(); renderTimer(); } }
+  else if(act==='done'){ toggleEdit(false); }
+  else if(act==='reset'){ beer=cloneBeer(baseBeer); renderEdit(); buildHopSched(); renderTimer(); renderFerment(); renderWalk(); }
+});
+// ---- Mash count-up timer (counts up from 0 per step; one active at a time; wall-clock anchored) ----
+let mashTimer={idx:null,start:0,target:0,iv:null};
+function mashMins(m){ const n=String(m).match(/\d+/g); return n?Math.max(...n.map(Number)):0; }
+function fmtMS(s){ const m=Math.floor(s/60); return String(m).padStart(2,'0')+':'+String(s%60).padStart(2,'0'); }
+function mashTimeCol(m, idx){
+  const label = m==='—' ? '' : `${m} min`;
+  const tgt = mashMins(m);
+  if(!tgt) return `<div class="mash-time">${label}</div>`;
+  return `<div class="mash-time"><span class="mash-target">${label}</span><button class="mtimer" data-idx="${idx}" data-target="${tgt}">▶ start</button></div>`;
+}
+function mashTick(){
+  if(mashTimer.idx===null) return;
+  const btn=document.querySelector(`.mtimer[data-idx="${mashTimer.idx}"]`);
+  if(!btn){ stopMashTimer(); return; }
+  const el=Math.max(0,Math.floor((Date.now()-mashTimer.start)/1000));
+  const done=el>=mashTimer.target*60;
+  btn.textContent=(done?'✓ ':'')+fmtMS(el);
+  btn.classList.add('running'); btn.classList.toggle('done',done);
+}
+function startMashTimer(idx,target){
+  if(mashTimer.iv) clearInterval(mashTimer.iv);
+  document.querySelectorAll('.mtimer.running,.mtimer.done').forEach(b=>{ b.textContent='▶ start'; b.classList.remove('running','done'); });
+  mashTimer={idx,start:Date.now(),target,iv:setInterval(mashTick,500)};
+  mashTick();
+}
+function stopMashTimer(){
+  if(mashTimer.iv) clearInterval(mashTimer.iv);
+  const b=mashTimer.idx!==null?document.querySelector(`.mtimer[data-idx="${mashTimer.idx}"]`):null;
+  if(b){ b.textContent='▶ start'; b.classList.remove('running','done'); }
+  mashTimer={idx:null,start:0,target:0,iv:null};
+}
+document.getElementById('mash').addEventListener('click',e=>{
+  const b=e.target.closest('.mtimer'); if(!b) return;
+  const idx=+b.dataset.idx, tgt=+b.dataset.target;
+  if(mashTimer.idx===idx) stopMashTimer(); else startMashTimer(idx,tgt);
+});
+['visibilitychange','focus'].forEach(ev=>window.addEventListener(ev,()=>{ if(document.visibilityState!=='hidden') mashTick(); }));
+function renderMash(){
+  stopMashTimer();
+  const k = vol/BASE;
+  const dark = darkSpec(beer), light = lightSpec(beer);
+  if(mode==='extract'){
+    document.getElementById('procHead').textContent = 'Steep & extract';
+    const steeps = steepGrains();
+    let steps = [];
+    const mz = maizeGrains();
+    if(mz.length){
+      const list = mz.map(g=>`${g.n} (${fmtKg(g.kg*k)})`).join(' + ');
+      steps.push({t:'corn',n:'Maize: small partial mash',d:`Corn has no enzymes, so plain extract can\u2019t turn it into sugar. Gelatinize ${list} (raw polenta: rest 10 min at 67 °C, then boil 20 min, stirring; flaked maize: skip the boil), then mash it with ~500 g Pilsner malt at ~67 °C for 30 min so it converts. Strain and add the liquid to the kettle. Thermomix: combine corn + 500 g malt + water (≤⅔ bowl), 67 °C / 30 min / speed 1 reverse (with a 20-min Varoma-temp boil first for raw polenta), then strain. Short on time? Leave the corn out — the LME still makes the beer, just a little less corn-crisp.`,m:'~45'});
+    }
+    if(steeps.length){
+      const list = steeps.map(g=>`${g.n} (${fmtKg(g.kg*k)})`).join(' + ');
+      steps.push({t:'67',n:'Steep specialty grains',d:`Hold ${list} in a grain bag in ~3–4 L water for 20–30 min, then lift out — don\u2019t squeeze.`,m:'20–30'});
+    }
+    steps.push({t:'off',n:'Dissolve the extract',d:`Off the heat, stir in ${fmtKg(lmeKg()*k)} of ${lmeType()} until fully dissolved — heat scorches undissolved extract.`,m:'5'});
+    steps.push({t:'boil',n:'Top up & boil',d:'Top up to your boil volume and bring to a rolling boil, then run the hop schedule below.',m:'—'});
+    document.getElementById('mash').innerHTML = steps.map((s,i)=>
+      `<div class="mash-step"><div class="mash-temp" style="font-size:${s.t.length>2?'15px':'23px'}">${s.t}${/^\d+$/.test(s.t)?'<small>°C</small>':''}</div><div class="mash-desc"><b>${s.n}</b><br>${s.d}</div>${mashTimeCol(s.m,i)}</div>`).join('');
+    document.getElementById('mashNote').innerHTML = `<b>When to add what.</b> The <b>specialty grains</b> go into the steep at the start (~67 °C, 20–30 min) — they only need their color and flavor pulled out, not converting. The <b>base</b> comes entirely from the <b>extract</b>, stirred in <i>off the heat</i> after the grains are removed${dark.length?`. For the dark grains (${dark.map(g=>g.n).join(', ')}), a separate cold steep in cold water overnight gives an even smoother, less acrid roast`:''}. Late-extract trick: hold back a third of the LME until the last 15 min of the boil for lighter color and better hop aroma.${beer.tip?` <span style="color:var(--gold-bright)"><b>Closest to real:</b> ${beer.tip}</span>`:''}`;
+    return;
+  }
+  document.getElementById('procHead').textContent = 'Mash schedule';
+  let steps = beer.mash.map(s=>({t:String(s.t),n:s.n,d:s.d,m:String(s.m)}));
+  // optional late dark-grain addition, inserted just before mash out
+  if(dark.length){
+    const list = dark.map(g=>g.n).join(' + ');
+    const moIdx = steps.findIndex(s=>/mash out/i.test(s.n));
+    const at = moIdx>0 ? moIdx : steps.length;
+    steps.splice(at,0,{t:'last 15',n:'Add dark/roasted grains (optional)',d:`Stir in ${list} for only the final ~10–15 min — full color, but smoother and less astringent than mashing them the whole time.`,m:'10–15'});
+  }
+  document.getElementById('mash').innerHTML = steps.map((s,i)=>{
+    const isTemp = /^\d+$/.test(s.t);
+    return `<div class="mash-step"><div class="mash-temp" style="font-size:${isTemp?'23px':'14px'}">${s.t}${isTemp?'<small>°C</small>':''}</div><div class="mash-desc"><b>${s.n}</b><br>${s.d}</div>${mashTimeCol(s.m,i)}</div>`;
+  }).join('');
+  const first = beer.mash.find(x=>/^\d+$/.test(String(x.t)))||beer.mash[0];
+  let note = `<b>When to add what.</b> Mash in the <b>base malt</b>`;
+  if(light.length) note += ` together with the caramel/crystal grains (${light.map(g=>g.n).join(', ')})`;
+  note += ` at the very start — they all convert and steep together in the mash.`;
+  if(dark.length){
+    note += ` The <b>dark/roasted grains</b> (${dark.map(g=>g.n).join(', ')}) can go in at mash-in too, but holding them for the last 10–15 min (the step above) gives a smoother roast with less tannin bite.`;
+  }
+  note += ` Heat strike water a few degrees above ${first.t} °C since the cold grain drops the temperature.`;
+  if(beer.tip) note += ` <span style="color:var(--gold-bright)"><b>Closest to real:</b> ${beer.tip}</span>`;
+  document.getElementById('mashNote').innerHTML = note;
+}
+/* ---- Fermentation adapts to the YEAST you use (e.g. Lutra Kveik ferments a lager warm & fast) ---- */
+function rngMin(s){ const n=String(s).match(/\d+/g); return n?Math.min(...n.map(Number)):0; }
+function rngMax(s){ const n=String(s).match(/\d+/g); return n?Math.max(...n.map(Number)):0; }
+function yeastProfile(name){
+  const n=(name||'').toLowerCase(), has=re=>re.test(n);
+  if(has(/kveik|lutra|voss|hornindal|oslo|hothead|framgarden|ebbegarden|loki/)){
+    const clean=has(/lutra|hothead/);
+    return {key:'kveik',label:'Kveik',tempLo:22,tempHi:35,primary:'3–5',diacetyl:false,lager:0,condition:'3–7',co2:'~2.4 vol',warm:true,character:clean?'clean':'fruity',
+      note:clean?'Clean kveik — ferments fast and warm with very little ester, so it can stand in for a lager at room temperature.':'Kveik — ferments fast and warm with orange/tropical esters that get cleaner the hotter you run it.'};
+  }
+  if(has(/saison|belle|3724|3711|3726/)) return {key:'saison',label:'Saison',tempLo:24,tempHi:30,primary:'10–21',diacetyl:false,lager:0,condition:'7–14',co2:'~2.8–3.2 vol',warm:true,character:'peppery',note:'Saison — warm, very attenuative and peppery; can be slow to finish, so keep it warm.'};
+  if(has(/belg|abbey|trappist|tripel|ardenne|wlp5[0-9]{2}|378[57]|3522|be-?256|t-?58/)) return {key:'belgian',label:'Belgian',tempLo:20,tempHi:26,primary:'10–14',diacetyl:false,lager:0,condition:'7–14',co2:'~2.6–3.0 vol',warm:false,character:'spicy',note:'Belgian — pitch cool then free-rise for fruity, spicy phenolics.'};
+  if(has(/hefe|weizen|weiss|wb-?06|3068|3638|munich classic|3333/)) return {key:'wheat',label:'Hefeweizen',tempLo:18,tempHi:20,primary:'7–10',diacetyl:false,lager:0,condition:'3–5',co2:'~3.0 vol',warm:false,character:'banana-clove',note:'Hefeweizen yeast — warmer pushes banana, cooler keeps clove; best fresh.'};
+  if(has(/k-?97|kölsch|kolsch|2565|altbier|\balt\b/)) return {key:'kolsch',label:'Kölsch/German ale',tempLo:15,tempHi:18,primary:'10–14',diacetyl:false,lager:'1–2',condition:'7–10',co2:'~2.4 vol',warm:false,character:'clean',note:'German ale/Kölsch — cool and clean; a short cold conditioning makes it lager-crisp.'};
+  if(has(/lager|34\/70|w-?34|saflager|wlp8[0-9]{2}|212[0-9]|2206|2278|s-?23|bohem|diamond/)) return {key:'lager',label:'Lager',tempLo:10,tempHi:13,primary:'10–14',diacetyl:true,lager:'2–4',condition:'1–2',co2:'~2.4 vol',warm:false,character:'clean-crisp',note:'Lager yeast — cold and slow, with a diacetyl rest and weeks of lagering for a crisp, clean beer.'};
+  if(has(/london|verdant|1318|a38|juice|barbarian|hazy|new england|neipa/)) return {key:'hazy',label:'Hazy/English ale',tempLo:18,tempHi:21,primary:'7–10',diacetyl:false,lager:0,condition:'3–7',co2:'~2.4 vol',warm:false,character:'soft-fruity',note:'Hazy/soft ale yeast — fruity, low flocculation; package fresh and keep oxygen out.'};
+  if(has(/english|s-?04|wlp00[234]|whitbread|windsor|nottingham|notty|west yorkshire|1968|1469|burton|wlp007|10(98|99)/)) return {key:'english',label:'English ale',tempLo:18,tempHi:20,primary:'5–8',diacetyl:false,lager:0,condition:'7–14',co2:'~2.0–2.2 vol',warm:false,character:'fruity-malty',note:'English ale — fruity and malty, flocculates well, fairly quick.'};
+  return {key:'ale',label:'Clean ale',tempLo:18,tempHi:20,primary:'7–10',diacetyl:false,lager:0,condition:'7–14',co2:'~2.4 vol',warm:false,character:'clean',note:'Clean American ale yeast — neutral and reliable across many styles.'};
+}
+function fermPlan(b){
+  const p=yeastProfile(b.yeast), og=parseFloat(b.og)||1.05, big=og>=1.07, steps=[];
+  let prim=big ? (rngMin(p.primary)+4)+'–'+(rngMax(p.primary)+7) : p.primary;
+  steps.push({h:'Primary',meta:`${p.tempLo}–${p.tempHi} °C · ${prim} days`,p:p.warm?'Ferment warm and fast — let it finish, then confirm a stable gravity over 2 days.':'Ferment until gravity is stable over 2–3 days.'});
+  if(p.diacetyl) steps.push({h:'Diacetyl rest',meta:'~18 °C · 2–3 days',p:'Warm up at the end so the yeast cleans up buttery diacetyl.'});
+  const dry=b.hops.filter(h=>typeof h.t!=='number' && /dry/.test(String(h.t)));
+  if(dry.length) steps.push({h:'Dry hop',meta:`${Math.max(18,p.tempLo)}–${Math.max(20,p.tempLo+2)} °C · 3–4 days`,p:'Add dry hops late in or just after primary for aroma; keep oxygen out.'});
+  if(p.lager){ const wk=big?rngMax(p.lager)+'–'+(rngMax(p.lager)+4):p.lager; steps.push({h:'Lagering',meta:`0–3 °C · ${wk} weeks`,p:'Cold conditioning for a round, clear, crisp beer. Patience pays.'}); }
+  let cond=big ? (rngMin(p.condition)+7)+'–'+(rngMax(p.condition)+14) : p.condition;
+  steps.push({h:'Condition & package',meta:`${p.co2} · ${cond} days`,p:'Prime or force-carbonate, then let it settle before drinking.'});
+  return steps;
+}
+function fermTiming(plan){
+  let lo=0,hi=0;
+  plan.forEach(s=>{ if(s.h==='Dry hop') return; const dur=String(s.meta).split('·').pop(); const dn=dur.match(/\d+/g); if(!dn)return; let a=+dn[0],b=dn[1]?+dn[1]:a; if(/week/.test(dur)){a*=7;b*=7;} lo+=a; hi+=b; });
+  return {lo,hi};
+}
+function styleMatch(b){
+  const target=b.type, p=yeastProfile(b.yeast), k=p.key;
+  const aleFam=(k==='ale'||k==='english'||k==='hazy'||k==='kolsch'); let pct;
+  if(target==='lager') pct = k==='lager'?100 : k==='kolsch'?90 : k==='kveik'?(p.character==='clean'?85:70) : aleFam?78 : 58;
+  else if(target==='wheat') pct = k==='wheat'?100 : k==='belgian'?70 : k==='kveik'?63 : aleFam?60 : 50;
+  else if(target==='belgian') pct = k==='belgian'?100 : k==='saison'?85 : (k==='kveik'||k==='wheat')?70 : aleFam?65 : 55;
+  else pct = aleFam?100 : k==='kveik'?(p.character==='clean'?90:84) : k==='lager'?82 : (k==='belgian'||k==='saison')?70 : k==='wheat'?72 : 80;
+  let note;
+  if(pct>=98) note='This is the style\u2019s usual yeast family — true to type.';
+  else if(target==='lager'&&k==='kveik') note=p.character==='clean'?'Clean kveik gives a lager-like beer at room temperature in days instead of weeks — just slightly less crisp than a true cold lager.':'Kveik ferments warm and fast, but adds fruity esters a true lager wouldn\u2019t have.';
+  else if(target==='lager'&&aleFam) note='A warm-fermented ale yeast makes a clean pseudo-lager (think Common/Steam) — a bit fruitier and less crisp than a real lager.';
+  else note=`Using ${p.label.toLowerCase()} yeast shifts it away from the classic ${target} profile — still good beer, just less true to style.`;
+  return {pct,note};
+}
+function renderFerment(){
+  const plan=fermPlan(beer), p=yeastProfile(beer.yeast), sm=styleMatch(beer);
+  const t=fermTiming(plan), timing = t.hi<=20 ? `~${t.lo}–${t.hi} days` : `~${Math.round(t.lo/7)}–${Math.round(t.hi/7)} weeks`;
+  const summary=`<div class="ferm-summary">
+    <div class="fs-line"><span class="fs-k">Yeast</span><span>${lEsc(beer.yeast)} · ${p.label}</span></div>
+    <div class="fs-line"><span class="fs-k">Approach</span><span>${p.warm?'warm':'cool/cold'} · ${p.tempLo}–${p.tempHi} °C${p.lager?` + ${p.lager} wk lager`:''}</span></div>
+    <div class="fs-line"><span class="fs-k">Time to glass</span><span>${timing}</span></div>
+    <div class="fs-line"><span class="fs-k">True to ${beer.type}</span><span class="fs-pct">~${sm.pct}%</span></div>
+    <div class="fs-note">${p.note} ${sm.note}</div>
+  </div>`;
+  document.getElementById('ferm').innerHTML = summary + plan.map(f=>
+    `<div class="ferm-step"><h3>${f.h}</h3><div class="meta">${f.meta}</div><p>${f.p}</p></div>`).join('');
+}
+function renderWalk(){
+  const k = vol/BASE;
+  const boilHops = beer.hops.filter(h=>typeof h.t==='number');
+  const hopStr = boilHops.map(h=>`${h.n} ${fmtG(h.g*k)} at ${h.t} min`).join(', ');
+  const lateHops = beer.hops.filter(h=>typeof h.t!=='number');
+  const lateStr = lateHops.length ? ` Then add ${lateHops.map(h=>`${h.n} ${fmtG(h.g*k)} (${h.t})`).join(' and ')} per the fermentation steps.` : '';
+  let steps;
+  if(mode==='extract'){
+    const steeps = steepGrains();
+    const steepStr = steeps.length ? steeps.map(g=>`${g.n} ${fmtKg(g.kg*k)}`).join(' + ') : null;
+    steps = [
+      ['Heat steep water',`Heat ~3–4 L water to about <b>67 °C</b>.`],
+      steepStr
+        ? ['Steep specialty grains',`Steep <b>${steepStr}</b> in a grain bag for 20–30 min, then lift it out without squeezing.`]
+        : ['No grains to steep',`This recipe is all base malt — skip steeping and go straight to the extract.`],
+      ['Dissolve the extract',`Take the pot <b>off the heat</b> and stir in <b>${fmtKg(lmeKg()*k)}</b> of ${lmeType()} until fully dissolved — undissolved extract scorches.`],
+      ['Top up & boil',`Top up to your boil volume (<b>${fmtL(waterVols().preBoil)}</b> for a full boil) and bring to a rolling boil. Start the timer below — <b>${beer.boil} min</b>.`],
+      ['Add hops on schedule',`Boil additions: <b>${hopStr || 'none'}</b>.${lateStr}`],
+      ['Flame out & chill',`Cool fast to <b>${beer.pitch}</b> (chiller or ice bath).`],
+      ['Transfer & aerate',`Rack to a sanitized fermenter and top up to your full ${vol} L with cool clean water if needed. Oxygenate well${beer.type==='lager'?' — lagers need oxygen up front.':'.'}`],
+      ['Pitch yeast',`Add your <b>${packsFor()}</b> of yeast${beer.type==='lager'||parseFloat(beer.og)>=1.07?' from a healthy starter':''}. Reading should be near <b>${beer.og}</b>.`],
+      ['Ferment & package',`Follow section 4: ${beer.type==='lager'?'cold primary, diacetyl rest, then weeks of lagering':'ferment out, condition, then package'}. Then carbonate.`]
+    ];
+    const mz=maizeGrains();
+    if(mz.length){
+      const list=mz.map(g=>`${g.n} ${fmtKg(g.kg*k)}`).join(' + ');
+      steps.splice(1,0,['Maize: small partial mash (optional)',`Corn can\u2019t convert in plain extract. Gelatinize <b>${list}</b> (raw polenta: 10 min at 67 °C then boil 20 min; flaked maize: skip the boil), then mash with <b>~500 g Pilsner malt</b> at 67 °C for 30 min, strain, and add the liquid to the kettle. <b>Thermomix:</b> bowl ≤⅔ full, 67 °C / 30 min / speed 1 reverse (raw polenta: a 20-min Varoma-temp boil first), then strain. Short on time? Skip it — the LME still makes the beer.`]);
+    }
+  } else {
+    const w=waterVols();
+    const grain = fmtKg(totalGrainKg()*k);
+    const strike = fmtL(w.strike);
+    const first = (beer.mash.find(x=>/^\d+$/.test(String(x.t)))||beer.mash[0]).t, last = beer.mash[beer.mash.length-1].t;
+    steps = [
+      ['Heat the mash water',`Bring <b>${strike}</b> of strike water to a few degrees above <b>${first} °C</b> — the cold grain will pull the temperature down.`],
+      ['Mash in',`Stir in all <b>${grain}</b> of grain slowly, no dry clumps. Settle near <b>${first} °C</b>.`],
+      ['Run the rests',`Hold each step in the schedule above, finishing with mash out at <b>${last} °C</b>.`],
+      ['Sparge & collect',`Drain the first wort, then rinse (sparge) the grain with <b>${fmtL(w.sparge)}</b> of <b>~75 °C</b> water until you\u2019ve collected your pre-boil volume of <b>${fmtL(w.preBoil)}</b>. This is where most of your water goes in — you\u2019ll boil off ${fmtL(w.boilOff)} and lose ~${w.losses.toFixed(1)} L to the kettle, landing near <b>${vol} L</b> in the fermenter.`],
+      ['Boil',`Bring to a rolling boil, then start the timer below — <b>${beer.boil} min</b> total.`],
+      ['Add hops on schedule',`Boil additions: <b>${hopStr || 'none'}</b>.${lateStr}`],
+      ['Flame out & chill',`Cool the wort fast to <b>${beer.pitch}</b> (chiller or ice bath). Fast cooling protects clarity and flavor.`],
+      ['Transfer & aerate',`Rack to a sanitized fermenter off the trub. Oxygenate well${beer.type==='lager'?' — lagers especially need oxygen up front.':'.'}`],
+      ['Pitch yeast',`Add your <b>${packsFor()}</b> of yeast${beer.type==='lager'||parseFloat(beer.og)>=1.07?' from a healthy starter':''}. Reading should be near <b>${beer.og}</b>.`],
+      ['Ferment & package',`Follow section 4: ${beer.type==='lager'?'cold primary, diacetyl rest, then weeks of lagering':'ferment out, condition, then package'}. Then carbonate. Patience makes the style.`]
+    ];
+    const cereal = beer.mash.find(s=>/cereal/i.test(s.n));
+    if(cereal) steps.splice(1,0,['Cereal mash (if using raw maize)', cereal.d]);
+  }
+  if(beer.tip) steps.push(['Closest to the real deal', beer.tip]);
+  document.getElementById('walk').innerHTML = steps.map(([h,p])=>`<div class="walk-step"><h3>${h}</h3><p>${p}</p></div>`).join('');
+}
+
+/* ---- boil timer (wall-clock anchored so it survives app backgrounding) ---- */
+let remaining = 3600, timer=null, endAt=0;
+const clock=document.getElementById('clock'), label=document.getElementById('clock-label');
+const boilKnob=document.getElementById('boilKnob');
+let dragging=false;
+function buildHopSched(){
+  const k = vol/BASE;
+  const boilHops = beer.hops.filter(h=>typeof h.t==='number').sort((a,b)=>b.t-a.t);
+  let html = boilHops.map(h=>`<div class="hop-line" data-at="${h.t}"><span class="hop-tick">✓</span><span class="hop-name">${h.n} ${fmtG(h.g*k)} — ${h.tag}</span><span class="when">${h.t} min</span></div>`).join('');
+  html += `<div class="hop-line" data-at="0"><span class="hop-tick">✓</span><span class="hop-name">Flame out &amp; chill</span><span class="when">0 min</span></div>`;
+  document.getElementById('hopSched').innerHTML = html;
+  document.getElementById('boilHead').textContent = `Boil · ${beer.boil} min`;
+  boilKnob.max = beer.boil;
+  document.getElementById('knobMax').textContent = `${beer.boil} min`;
+}
+function setKnob(elapsedMin){
+  elapsedMin=Math.max(0,Math.min(beer.boil,elapsedMin));
+  boilKnob.value=elapsedMin;
+  boilKnob.style.setProperty('--p',(elapsedMin/beer.boil*100)+'%');
+}
+function renderTimer(){
+  const m=Math.floor(remaining/60), s=remaining%60;
+  clock.textContent = String(m).padStart(2,'0')+':'+String(s).padStart(2,'0');
+  const minsLeft = remaining/60; let alert=false;
+  document.querySelectorAll('.hop-line').forEach(line=>{
+    const at=+line.dataset.at; line.classList.remove('now','done');
+    if(minsLeft<=at && minsLeft>at-0.5){ line.classList.add('now'); alert=true; }
+    else if(minsLeft<at){ line.classList.add('done'); }
+  });
+  clock.classList.toggle('alert',alert);
+  if(alert){ const now=[...document.querySelectorAll('.hop-line')].find(l=>l.classList.contains('now')); if(now){ const nm=now.querySelector('.hop-name'); label.textContent='⟶ add: '+(nm?nm.textContent:now.textContent); } }
+  if(!dragging) setKnob(beer.boil - remaining/60);
+}
+function tick(){
+  remaining = Math.max(0, Math.round((endAt - Date.now())/1000));
+  renderTimer();
+  if(remaining<=0){ clearInterval(timer); timer=null; clock.textContent='00:00'; clock.classList.add('alert'); label.textContent='boil complete — flame out & chill'; return; }
+  if(!clock.classList.contains('alert')) label.textContent='boiling';
+}
+// Knob is the only control: dragging it sets where you are and (re)starts the running clock from there.
+function setFromElapsed(elapsedMin){
+  elapsedMin=Math.max(0,Math.min(beer.boil, elapsedMin));
+  remaining=Math.round((beer.boil-elapsedMin)*60);
+  clearInterval(timer); timer=null;
+  if(remaining<=0){ endAt=0; remaining=0; clock.textContent='00:00'; clock.classList.add('alert'); label.textContent='boil complete — flame out & chill'; renderTimer(); return; }
+  endAt=Date.now()+remaining*1000;
+  clock.classList.remove('alert');
+  timer=setInterval(tick,500);
+  tick();
+}
+function resetTimer(){
+  clearInterval(timer); timer=null; endAt=0; remaining=beer.boil*60; dragging=false;
+  clock.classList.remove('alert'); label.textContent='drag the dial to start the boil';
+}
+boilKnob.addEventListener('pointerdown',()=>{dragging=true;});
+boilKnob.addEventListener('input',e=>{ dragging=true; setKnob(+e.target.value); setFromElapsed(+e.target.value); });
+['pointerup','pointercancel','mouseup','touchend','change'].forEach(ev=>boilKnob.addEventListener(ev,()=>{ dragging=false; }));
+// manual tick: tap a phase to toggle its checkmark
+document.getElementById('hopSched').addEventListener('click',e=>{ const line=e.target.closest('.hop-line'); if(!line) return; line.classList.toggle('ticked'); });
+// resync display when returning to the app
+document.addEventListener('visibilitychange',()=>{ if(!document.hidden){ if(timer!==null) tick(); if(chillT.iv) chillTick(); } });
+window.addEventListener('focus',()=>{ if(timer!==null) tick(); if(chillT.iv) chillTick(); });
+
+/* ---- chill timer (counts up; tap the clock to start / reset) ---- */
+let chillT={start:0,iv:null};
+const chillClock=document.getElementById('chillClock'), chillHint=document.getElementById('chillHint');
+function chillTick(){ chillClock.textContent=fmtMS(Math.max(0,Math.floor((Date.now()-chillT.start)/1000))); }
+chillClock.addEventListener('click',()=>{
+  if(chillT.iv){ clearInterval(chillT.iv); chillT={start:0,iv:null}; chillClock.textContent='00:00'; chillClock.classList.remove('running'); chillHint.textContent='tap the clock to start'; }
+  else { chillT={start:Date.now(),iv:setInterval(chillTick,500)}; chillClock.classList.add('running'); chillHint.textContent='chilling… tap to reset'; chillTick(); }
+});
+
+
+/* ---- batch controls ---- */
+const slider=document.getElementById('slider');
+function setVol(v){
+  vol=v; document.getElementById('vol').textContent=v;
+  const p=(v-slider.min)/(slider.max-slider.min)*100; slider.style.setProperty('--p',p+'%');
+  document.querySelectorAll('.preset').forEach(b=>b.classList.toggle('on',+b.dataset.v===v));
+  renderIngredients(); renderWalk(); buildHopSched(); renderTimer();
+}
+slider.addEventListener('input',e=>setVol(+e.target.value));
+document.getElementById('presets').addEventListener('click',e=>{ const b=e.target.closest('.preset'); if(!b)return; slider.value=b.dataset.v; setVol(+b.dataset.v); });
+
+document.getElementById('modeToggle').addEventListener('click',e=>{
+  const b=e.target.closest('button'); if(!b) return;
+  mode=b.dataset.mode;
+  document.querySelectorAll('#modeToggle button').forEach(x=>x.classList.toggle('on',x===b));
+  renderIngredients(); renderMash(); renderWalk();
+});
+
+function renderAll(){
+  if(typeof exitEditUI==='function') exitEditUI();
+  renderHeader(); renderStats(); renderMash(); renderFerment();
+  resetTimer();
+  setVol(vol); // also renders ingredients, walk, hop sched, timer
+  setKnob(0);
+}
+
+/* ---- ingredient matcher ---- */
+const INGREDIENTS=[
+  {g:'Fermentables',items:[['pilsner','Pilsner malt'],['pale','Pale / Maris Otter'],['munich','Munich malt'],['vienna','Vienna malt'],['wheat','Wheat malt'],['maize','Nostrano / maize (polenta)'],['oats','Flaked oats'],['flakedwheat','Flaked/raw wheat'],['flakedbarley','Flaked barley'],['crystal','Crystal / Caramel'],['choc','Chocolate malt'],['roast','Roasted / Black'],['darkmalt','Carafa (dark)'],['sugar','Candi sugar']]},
+  {g:'Extract',items:[['extract','Malt extract (LME / DME)']]},
+  {g:'Hops — noble',items:[['saaz','Saaz'],['hallertau','Hallertau'],['tettnang','Tettnang'],['styrian','Styrian Goldings'],['spalt','Spalt']]},
+  {g:'Hops — American',items:[['cascade','Cascade'],['centennial','Centennial'],['columbus','Columbus'],['citra','Citra'],['mosaic','Mosaic'],['simcoe','Simcoe'],['amarillo','Amarillo'],['chinook','Chinook']]},
+  {g:'Hops — English',items:[['ekg','East Kent Goldings'],['fuggle','Fuggle'],['challenger','Challenger']]},
+  {g:'Hops — New world',items:[['nelson','Nelson Sauvin'],['galaxy','Galaxy'],['motueka','Motueka'],['riwaka','Riwaka']]},
+  {g:'Yeast',items:[['w3470','Lager W-34/70'],['wlp830','Lager WLP830'],['us05','Clean ale US-05'],['wlp001','Clean ale WLP001'],['coopers','Coopers ale'],['k97','German ale K-97'],['s04','English S-04'],['wlp002','English WLP002'],['wlp004','Irish WLP004'],['wb06','Hefeweizen WB-06'],['wy3068','Hefeweizen 3068'],['wlp400','Belgian Wit WLP400'],['wlp530','Belgian Abbey WLP530'],['wy3787','Belgian 3787'],['belle','Saison (Belle/3724)'],['kveik','Kveik'],['london3','Hazy (London III/Verdant)']]}
+];
+const LABEL={}; INGREDIENTS.forEach(grp=>grp.items.forEach(([t,l])=>LABEL[t]=l));
+
+// specific token -> hop family
+const HOPFAM={saaz:'noble',hallertau:'noble',tettnang:'noble',styrian:'noble',spalt:'noble',
+  cascade:'american',centennial:'american',columbus:'american',citra:'american',mosaic:'american',simcoe:'american',amarillo:'american',chinook:'american',
+  ekg:'english',fuggle:'english',challenger:'english',
+  nelson:'newworld',galaxy:'newworld',motueka:'newworld',riwaka:'newworld'};
+// variety token -> display name (for variety-level "still need")
+const HOPLABEL={saaz:'Saaz',hallertau:'Hallertau',tettnang:'Tettnang',styrian:'Styrian Goldings',spalt:'Spalt',
+  cascade:'Cascade',centennial:'Centennial',columbus:'Columbus',citra:'Citra',mosaic:'Mosaic',simcoe:'Simcoe',amarillo:'Amarillo',chinook:'Chinook',
+  ekg:'East Kent Goldings',fuggle:'Fuggle',challenger:'Challenger',nelson:'Nelson Sauvin',galaxy:'Galaxy',motueka:'Motueka',riwaka:'Riwaka'};
+// specific strain -> yeast category
+const YEASTCAT={w3470:'lager_yeast',wlp830:'lager_yeast',us05:'ale_yeast',wlp001:'ale_yeast',coopers:'ale_yeast',k97:'ale_yeast',s04:'english_yeast',wlp002:'english_yeast',wlp004:'english_yeast',wb06:'hefe_yeast',wy3068:'hefe_yeast',wlp400:'belgian_yeast',wlp530:'belgian_yeast',wy3787:'belgian_yeast',belle:'saison_yeast',kveik:'kveik',london3:'hazy_yeast'};
+// labels for requirement categories (used in "still need" text)
+const REQLABEL={noble:'Noble hops',american:'American hops',english:'English hops',newworld:'New-world hops',
+  lager_yeast:'Lager yeast',ale_yeast:'Clean ale yeast',english_yeast:'English ale yeast',hefe_yeast:'Hefeweizen yeast',belgian_yeast:'Belgian yeast',saison_yeast:'Saison yeast',kveik:'Kveik',hazy_yeast:'Hazy/English ale yeast',
+  pilsner:'Pilsner malt',pale:'Pale malt',munich:'Munich malt',vienna:'Vienna malt',wheat:'Wheat malt',maize:'Maize / polenta',oats:'Flaked oats',flakedwheat:'Flaked wheat',flakedbarley:'Flaked barley',crystal:'Crystal malt',choc:'Chocolate malt',roast:'Roasted/black malt',darkmalt:'Carafa',sugar:'Candi sugar'};
+// yeast substitution credit (req -> {substitute: credit})
+const YSUBS={ale_yeast:{english_yeast:0.7,hazy_yeast:0.7,kveik:0.8,saison_yeast:0.6},english_yeast:{ale_yeast:0.7,hazy_yeast:0.9,kveik:0.7},hazy_yeast:{english_yeast:0.9,ale_yeast:0.7,kveik:0.6},belgian_yeast:{saison_yeast:0.8,kveik:0.6},saison_yeast:{belgian_yeast:0.7,ale_yeast:0.6,kveik:0.6},lager_yeast:{},hefe_yeast:{},kveik:{}};
+
+const have=new Set();
+
+function grainToken(name){
+  const n=name.toLowerCase();
+  if(/pilsner/.test(n))return'pilsner';
+  if(/maris otter|2-row|pale ale|pale malt|pale 2/.test(n))return'pale';
+  if(/munich/.test(n))return'munich';
+  if(/vienna/.test(n))return'vienna';
+  if(/(flaked|unmalted|raw).*wheat/.test(n))return'flakedwheat';
+  if(/maize|corn|polenta|nostrano/.test(n))return'maize';
+  if(/oats/.test(n))return'oats';
+  if(/flaked barley/.test(n))return'flakedbarley';
+  if(/wheat/.test(n))return'wheat';
+  if(/crystal|caramel|caramunich|carapils/.test(n))return'crystal';
+  if(/chocolate/.test(n))return'choc';
+  if(/roasted|black malt|roast/.test(n))return'roast';
+  if(/carafa/.test(n))return'darkmalt';
+  if(/candi|sugar/.test(n))return'sugar';
+  return'pale';
+}
+function hopFamFromName(name){
+  const n=name.toLowerCase();
+  if(/saaz|hallertau|tettnang|styrian|spalt|hersbruck/.test(n))return'noble';
+  if(/nelson|galaxy|motueka|riwaka|vic secret|sauvin/.test(n))return'newworld';
+  if(/cascade|centennial|columbus|citra|mosaic|simcoe|amarillo|chinook|warrior/.test(n))return'american';
+  if(/kent|golding|fuggle|ekg|challenger/.test(n))return'english';
+  return'noble';
+}
+// extract every specific variety token from a hop name (handles "Citra + Mosaic")
+function hopVarsFromName(name){
+  const n=name.toLowerCase();
+  const checks=[['saaz','saaz'],['hallertau','hallertau'],['hersbruck','hallertau'],['tettnang','tettnang'],['styrian','styrian'],['spalt','spalt'],
+    ['citra','citra'],['mosaic','mosaic'],['simcoe','simcoe'],['amarillo','amarillo'],['chinook','chinook'],['cascade','cascade'],['centennial','centennial'],['columbus','columbus'],['warrior','columbus'],
+    ['nelson','nelson'],['sauvin','nelson'],['galaxy','galaxy'],['motueka','motueka'],['riwaka','riwaka'],
+    ['kent','ekg'],['golding','ekg'],['ekg','ekg'],['fuggle','fuggle'],['challenger','challenger']];
+  const out=new Set();
+  checks.forEach(([pat,tok])=>{ if(n.includes(pat))out.add(tok); });
+  return [...out];
+}
+function yeastToken(b){
+  const s=b.yeast.toLowerCase();
+  if(b.type==='lager')return'lager_yeast';
+  if(b.type==='belgian')return'belgian_yeast';
+  if(b.type==='wheat')return /wlp400|t-58/.test(s)?'belgian_yeast':'hefe_yeast';
+  if(/verdant|london ale iii|london iii|hazy/.test(s))return'hazy_yeast';
+  if(/saison|belle|3724|3711/.test(s))return'saison_yeast';
+  const first=s.split('/')[0];
+  if(/s-04|wlp002|wlp004/.test(first))return'english_yeast';
+  return'ale_yeast';
+}
+function baseToks(b){ return [...new Set(b.grains.filter(g=>['base','adjunct'].includes(role(g))).map(g=>grainToken(g.n)))]; }
+// character-bearing base/adjunct grains worth flagging individually (pilsner/pale are neutral and covered by the base/extract check)
+const CHAR_BASE=['munich','vienna','wheat','oats','flakedwheat','flakedbarley','maize'];
+function charBaseToks(b){ return baseToks(b).filter(t=>CHAR_BASE.includes(t)); }
+function specToks(b){ const s=new Set(); b.grains.forEach(g=>{ const r=role(g); if(r==='steep')s.add(grainToken(g.n)); if(r==='sugar')s.add('sugar'); }); return [...s]; }
+function darkSpec(b){ return b.grains.filter(g=>role(g)==='steep' && ['choc','roast','darkmalt'].includes(grainToken(g.n))); }
+function lightSpec(b){ return b.grains.filter(g=>role(g)==='steep' && !['choc','roast','darkmalt'].includes(grainToken(g.n))); }
+function hopFams(b){ return [...new Set(b.hops.map(h=>hopFamFromName(h.n)))]; }
+function userHopFams(){ const s=new Set(); have.forEach(t=>{ if(HOPFAM[t])s.add(HOPFAM[t]); }); return s; }
+function userYeastCats(){ const s=new Set(); have.forEach(t=>{ if(YEASTCAT[t])s.add(YEASTCAT[t]); }); return s; }
+function yeastSat(req,cats){
+  if(cats.has(req))return 1;
+  let best=0; const subs=YSUBS[req]||{};
+  for(const sub in subs){ if(cats.has(sub))best=Math.max(best,subs[sub]); }
+  return best;
+}
+function matchBeer(b){
+  let pts=0,max=0; const missing=[];
+  const uf=userHopFams(), uy=userYeastCats();
+  max+=3;
+  if(have.has('extract'))pts+=3;
+  else if(baseToks(b).some(t=>have.has(t)))pts+=3;
+  else missing.push('a base malt or extract');
+  // character base/adjunct malts (Munich, Vienna, Wheat, oats, etc.) — flagged individually like specialty grains; plain extract doesn't supply their character
+  charBaseToks(b).forEach(t=>{ max+=1; if(have.has(t))pts+=1; else missing.push(REQLABEL[t]||LABEL[t]||t); });
+  specToks(b).forEach(t=>{ max+=1; if(have.has(t))pts+=1; else missing.push(REQLABEL[t]||t); });
+  hopFams(b).forEach(f=>{
+    max+=2;
+    // specific varieties this beer uses from family f
+    const vs=[...new Set(b.hops.filter(h=>hopFamFromName(h.n)===f).flatMap(h=>hopVarsFromName(h.n)).filter(t=>HOPFAM[t]===f))];
+    const present=vs.filter(t=>have.has(t));
+    let v;
+    if(vs.length===0){ v=uf.has(f)?1:0; }            // no recognised varieties — fall back to family
+    else if(present.length===vs.length){ v=1; }       // have every specific hop
+    else if(present.length>0){ v=0.85; }              // have some of them
+    else if(uf.has(f)){ v=0.6; }                      // only a same-family substitute
+    else if((f==='american'&&uf.has('newworld'))||(f==='newworld'&&uf.has('american'))){ v=0.5; }
+    else { v=0; }
+    pts+=2*v;
+    if(v<1){
+      if(vs.length){ vs.filter(t=>!have.has(t)).forEach(t=>{ const lbl=HOPLABEL[t]||REQLABEL[f]; if(!missing.includes(lbl))missing.push(lbl); }); }
+      else if(!missing.includes(REQLABEL[f])){ missing.push(REQLABEL[f]); }
+    }
+  });
+  max+=2; const cat=yeastToken(b); const ys=yeastSat(cat,uy); pts+=2*ys; if(ys===0)missing.push(REQLABEL[cat]);
+  return {pct:Math.round(pts/max*100),missing};
+}
+
+function buildChips(){
+  document.getElementById('chipGroups').innerHTML = INGREDIENTS.map(grp=>
+    `<div class="chip-group"><h4>${grp.g}</h4><div class="chips">${grp.items.map(([t,l])=>`<button class="chip" data-tok="${t}">${l}</button>`).join('')}</div></div>`).join('');
+}
+function suggest(){
+  const box=document.getElementById('suggestResults');
+  if(have.size===0){ box.innerHTML='<p class="suggest-hint">Pick a few ingredients above to see matches.</p>'; return; }
+  const ranked=BEERS.map((b,i)=>({i,b,...matchBeer(b)})).sort((a,z)=>z.pct-a.pct).slice(0,4);
+  box.innerHTML=ranked.map(r=>{
+    let miss='you have it all ✓';
+    if(r.missing.length){ const show=r.missing.slice(0,3).join(', '); miss='still need: '+show+(r.missing.length>3?` +${r.missing.length-3} more`:''); }
+    return `<button class="result ${r.pct>=90?'full':''}" data-idx="${r.i}"><span class="pct">${r.pct}%</span><span class="rtext"><span class="rname">${r.b.name}</span><span class="rmiss">${miss}</span></span></button>`;
+  }).join('');
+}
+function loadBeer(idx){
+  baseBeer=BEERS[idx]; beer=cloneBeer(baseBeer); picker.value=idx;
+  // if they have extract but no matching base grain, flip to extract mode
+  if(have.has('extract') && !baseToks(beer).some(t=>have.has(t))){
+    mode='extract'; document.querySelectorAll('#modeToggle button').forEach(x=>x.classList.toggle('on',x.dataset.mode==='extract'));
+  }
+  resetTimer(); renderAll();
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+
+document.getElementById('suggestToggle').addEventListener('click',()=>{
+  const body=document.getElementById('suggestBody');
+  body.hidden=!body.hidden;
+  document.getElementById('suggestCaret').textContent = body.hidden ? '▾' : '▴';
+});
+document.getElementById('chipGroups').addEventListener('click',e=>{
+  const c=e.target.closest('.chip'); if(!c)return;
+  const t=c.dataset.tok;
+  if(have.has(t)){ have.delete(t); c.classList.remove('on'); } else { have.add(t); c.classList.add('on'); }
+  suggest();
+});
+document.getElementById('suggestResults').addEventListener('click',e=>{
+  const r=e.target.closest('.result'); if(!r)return;
+  loadBeer(+r.dataset.idx);
+});
+
+/* ---- photo recognition (uses the in-app Anthropic API) ---- */
+function selectToken(tok){
+  if(!LABEL[tok]) return false;
+  have.add(tok);
+  const chip=document.querySelector(`.chip[data-tok="${tok}"]`);
+  if(chip) chip.classList.add('on');
+  return true;
+}
+function fileToBase64(file){
+  return new Promise((res,rej)=>{ const r=new FileReader(); r.onload=()=>res(r.result.split(',')[1]); r.onerror=()=>rej(new Error('read failed')); r.readAsDataURL(file); });
+}
+async function modelCall(body){
+  // 1) backend proxy — works on a published site once the function + API key are deployed
+  try{
+    const r=await fetch(API_ENDPOINT,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
+    if(r.ok) return await r.json();
+    if(r.status!==404) throw new Error('HTTP '+r.status); // a real backend error — surface it
+  }catch(e){ if(e.message&&e.message.startsWith('HTTP')) throw e; /* 404 / network: try direct */ }
+  // 2) direct call — works inside the claude.ai artifact runtime
+  let r2;
+  try{ r2=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)}); }
+  catch(e){ throw new Error('NETWORK'); }
+  if(!r2.ok) throw new Error('HTTP '+r2.status);
+  return await r2.json();
+}
+async function identify(file){
+  const data=await fileToBase64(file);
+  const tokenList=INGREDIENTS.flatMap(g=>g.items.map(([t,l])=>`${t} = ${l}`)).join('; ');
+  const prompt=`You are identifying ONE homebrewing ingredient from a photo: a malt/grain, hops, yeast, or malt extract. Pick the single closest token from this list. Tokens: ${tokenList}. Respond with ONLY a JSON object and nothing else (no markdown, no prose): {"token":"<token or null>","name":"<short label of what you see>","confidence":"high|medium|low"}. If it isn't a brewing ingredient or you can't tell, use "token":null.`;
+  const body={model:"claude-sonnet-4-6",max_tokens:1000,messages:[
+    {role:"user",content:[
+      {type:"image",source:{type:"base64",media_type:file.type||"image/jpeg",data}},
+      {type:"text",text:prompt}
+    ]}
+  ]};
+  const j=await modelCall(body);
+  let text=(j.content||[]).filter(b=>b.type==="text").map(b=>b.text).join("").replace(/```json|```/g,"").trim();
+  const brace=text.match(/\{[\s\S]*\}/); // pull the JSON object even if wrapped in prose
+  if(brace) text=brace[0];
+  try{ return JSON.parse(text); }
+  catch(e){ throw new Error('PARSE'); }
+}
+const photoStatus=document.getElementById('photoStatus');
+function setStatus(msg,cls){ photoStatus.textContent=msg; photoStatus.className='photo-status'+(cls?' '+cls:''); }
+document.getElementById('cameraBtn').addEventListener('click',()=>document.getElementById('cameraInput').click());
+document.getElementById('uploadBtn').addEventListener('click',()=>document.getElementById('uploadInput').click());
+async function handlePhotos(e){
+  const files=[...e.target.files]; if(!files.length)return;
+  let added=0;
+  for(let i=0;i<files.length;i++){
+    setStatus(`Analyzing photo ${i+1} of ${files.length}…`);
+    try{
+      const r=await identify(files[i]);
+      if(r&&r.token&&selectToken(r.token)){ added++; setStatus(`Added: ${r.name||LABEL[r.token]} ✓`,'ok'); suggest(); }
+      else setStatus(`Couldn't match ${r&&r.name?`"${r.name}"`:'that image'} to a known ingredient — tap a chip instead.`,'err');
+    }catch(err){
+      const m=err.message;
+      if(m==='NETWORK') setStatus("Can't reach the recognition service. If you just deployed, check the function and your ANTHROPIC_API_KEY. Meanwhile, tap the chips to add ingredients manually.",'err');
+      else if(m&&m.startsWith('HTTP')) setStatus(`Model call failed (${m}). Try again, or tap the chips to add ingredients manually.`,'err');
+      else if(m==='PARSE') setStatus("Got a reply but couldn't read it — try a clearer, closer photo of the label.",'err');
+      else setStatus("Photo ID failed: "+m+". Tap the chips to add ingredients manually.",'err');
+      break;
+    }
+  }
+  if(added) setStatus(`Added ${added} ingredient${added>1?'s':''} from photos ✓`,'ok');
+  e.target.value='';
+}
+document.getElementById('cameraInput').addEventListener('change',handlePhotos);
+document.getElementById('uploadInput').addEventListener('change',handlePhotos);
+
+/* ---- shopping list ---- */
+const CART=[];
+const LIST_ORDER=['Base & adjunct grains','Fermentables (extract)','Specialty grains','Specialty grains (steep)','Sugar & spices','Hops','Yeast'];
+function currentLines(){
+  const k=vol/BASE, out=[];
+  if(mode==='extract'){
+    out.push({cat:'Fermentables (extract)', label:lmeType(), g:lmeKg()*k*1000});
+    steepGrains().forEach(g=>out.push({cat:'Specialty grains (steep)', label:g.n, g:g.kg*k*1000}));
+    extras().forEach(g=>out.push({cat:'Sugar & spices', label:g.n, g:g.kg*k*1000}));
+  } else {
+    beer.grains.forEach(g=>{
+      const r=role(g);
+      const cat = (r==='base'||r==='adjunct')?'Base & adjunct grains' : r==='steep'?'Specialty grains' : 'Sugar & spices';
+      out.push({cat, label:g.n, g:g.kg*k*1000});
+    });
+  }
+  const hopMap={};
+  beer.hops.forEach(h=>{ hopMap[h.n]=(hopMap[h.n]||0)+h.g*k; }); // h.g is already grams
+  Object.keys(hopMap).forEach(n=>out.push({cat:'Hops', label:n, g:hopMap[n]}));
+  out.push({cat:'Yeast', label:beer.yeast, packs:packsNum()});
+  return out;
+}
+function amt(it){
+  if(it.packs!=null) return it.packs+' pack'+(it.packs>1?'s':'');
+  return it.g>=1000 ? (it.g/1000).toFixed(2)+' kg' : Math.round(it.g)+' g';
+}
+function modeLabel(m){ return m==='extract'?'Extract':'All-grain'; }
+function slug(s){ return s.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,''); }
+function groupText(lines){
+  let t='';
+  LIST_ORDER.forEach(cat=>{
+    const items=lines.filter(l=>l.cat===cat); if(!items.length) return;
+    t+=cat.toUpperCase()+'\n';
+    items.forEach(it=>{ t+=`  [ ] ${it.label} — ${amt(it)}\n`; });
+    t+='\n';
+  });
+  return t;
+}
+function buildOneText(entry){
+  return `SHOPPING LIST — ${entry.name}\nBatch: ${entry.vol} L · ${modeLabel(entry.mode)}\n\n`+groupText(entry.lines)+`— Brew Card. Recipes are starting points; tune to your system.\n`;
+}
+function buildCombinedText(){
+  const agg={};
+  CART.forEach(c=>c.lines.forEach(l=>{
+    const key=l.cat+'||'+l.label;
+    if(!agg[key]) agg[key]={cat:l.cat,label:l.label,g:0,packs:null};
+    if(l.packs!=null) agg[key].packs=(agg[key].packs||0)+l.packs;
+    else agg[key].g+=l.g;
+  }));
+  const lines=Object.values(agg);
+  let head=`SHOPPING LIST — COMBINED (${CART.length} batch${CART.length>1?'es':''})\n\nBatches:\n`+
+    CART.map(c=>`  • ${c.name} — ${c.vol} L, ${modeLabel(c.mode)}`).join('\n')+`\n\nTOTAL INGREDIENTS TO BUY\n\n`;
+  return head+groupText(lines)+`— Brew Card. Recipes are starting points; tune to your system.\n`;
+}
+function downloadText(filename, text){
+  try{
+    const blob=new Blob([text],{type:'text/plain;charset=utf-8'});
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement('a'); a.href=url; a.download=filename;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(()=>URL.revokeObjectURL(url),1500);
+    return true;
+  }catch(e){ return false; }
+}
+function renderCart(){
+  const el=document.getElementById('cart');
+  if(!CART.length){ el.hidden=true; el.innerHTML=''; return; }
+  el.hidden=false;
+  el.innerHTML='<h4>Combined list — '+CART.length+' batch'+(CART.length>1?'es':'')+'</h4>'+
+    CART.map((c,i)=>`<div class="cart-item"><span>${c.name} · ${c.vol} L · ${modeLabel(c.mode)}</span><button data-i="${i}" title="remove">✕</button></div>`).join('')+
+    '<div class="cart-actions"><button class="mini-btn gold" id="dlCart">⬇️ Download combined (.txt)</button><button class="mini-btn" id="clearCart">Clear</button></div>';
+}
+let modalFile='shopping-list.txt';
+function openListModal(title, filename, text){
+  document.getElementById('modalTitle').textContent=title;
+  document.getElementById('modalText').value=text;
+  modalFile=filename;
+  document.getElementById('listModal').hidden=false;
+}
+function closeModal(){ document.getElementById('listModal').hidden=true; }
+document.getElementById('modalClose').addEventListener('click',closeModal);
+document.getElementById('listModal').addEventListener('click',e=>{ if(e.target.id==='listModal') closeModal(); });
+document.getElementById('modalDownload').addEventListener('click',()=>{
+  const ok=downloadText(modalFile, document.getElementById('modalText').value);
+  if(!ok){ const b=document.getElementById('modalDownload'); b.textContent='Download blocked — use Copy'; }
+});
+document.getElementById('modalCopy').addEventListener('click',async()=>{
+  const ta=document.getElementById('modalText'); const btn=document.getElementById('modalCopy');
+  let done=false;
+  try{ await navigator.clipboard.writeText(ta.value); done=true; }
+  catch(e){
+    try{ ta.focus(); ta.select(); done=document.execCommand('copy'); }catch(_){}
+  }
+  btn.textContent = done ? '✓ Copied' : 'Select text above ↑';
+  setTimeout(()=>{ btn.textContent='📋 Copy'; },1600);
+});
+
+/* ---- Brew log: data points + notes. Persists in the published/installed app; falls back to in-memory in the sandbox. Always exportable. ---- */
+function lsGet(k){ try{ return localStorage.getItem(k); }catch(e){ return null; } }
+function lsSet(k,v){ try{ localStorage.setItem(k,v); return true; }catch(e){ return false; } }
+let logPersists=false;
+(function(){ logPersists=lsSet('__bcprobe','1'); try{ localStorage.removeItem('__bcprobe'); }catch(e){} })();
+let brewLog=[]; try{ const r=lsGet('brewLog'); if(r) brewLog=JSON.parse(r); }catch(e){ brewLog=[]; }
+function lEsc(s){ return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+function fmtWhen(ts){ const d=new Date(ts); return d.toLocaleDateString(undefined,{month:'short',day:'numeric'})+' '+d.toLocaleTimeString(undefined,{hour:'2-digit',minute:'2-digit'}); }
+function saveLog(){ logPersists=lsSet('brewLog', JSON.stringify(brewLog)); updateLogHint(); }
+function updateLogHint(){
+  const el=document.getElementById('logPersistHint'); if(!el) return;
+  el.textContent = logPersists
+    ? 'Saved on this device. Tap Export to back it up or move it elsewhere.'
+    : 'Heads up: this preview blocks storage, so entries last only for this session. In the published/installed app they’re saved automatically — use Export to keep a copy.';
+}
+function renderLog(){
+  const list=document.getElementById('logList'); if(!list) return;
+  if(!brewLog.length){ list.innerHTML='<div class="log-empty">No entries yet — add a reading or a note.</div>'; return; }
+  list.innerHTML=brewLog.map((e,i)=>{
+    const body=e.type==='data' ? `<b>${lEsc(e.label||'reading')}:</b> ${lEsc(e.value||'')}` : lEsc(e.text||'');
+    const beer=e.beer ? `<div class="log-beer">${lEsc(e.beer)}</div>` : '';
+    return `<div class="log-item"><span class="log-when">${fmtWhen(e.ts)}</span><div class="log-body">${body}${beer}</div><button class="log-del" data-i="${i}" title="delete">✕</button></div>`;
+  }).join('');
+}
+function addLogEntry(entry){ entry.ts=Date.now(); entry.beer=(typeof beer!=='undefined'&&beer)?beer.name:null; brewLog.unshift(entry); saveLog(); renderLog(); }
+document.getElementById('logAddData').addEventListener('click',()=>{
+  const l=document.getElementById('logLabel'), v=document.getElementById('logValue');
+  const label=l.value.trim(), value=v.value.trim();
+  if(!label && !value) return;
+  addLogEntry({type:'data',label,value}); l.value=''; v.value=''; l.focus();
+});
+document.getElementById('logValue').addEventListener('keydown',e=>{ if(e.key==='Enter'){ e.preventDefault(); document.getElementById('logAddData').click(); } });
+document.getElementById('logAddNote').addEventListener('click',()=>{
+  const n=document.getElementById('logNote'); const text=n.value.trim();
+  if(!text) return; addLogEntry({type:'note',text}); n.value=''; n.focus();
+});
+/* voice note: record speech and transcribe into the note box (Web Speech API) */
+(function(){
+  const micBtn=document.getElementById('logMic'); if(!micBtn) return;
+  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+  if(!SR){ micBtn.disabled=true; micBtn.style.opacity='.45'; micBtn.title='Voice notes need Chrome or Safari'; return; }
+  let rec=null, recording=false, baseNote='', finalText='';
+  function stopUI(){ recording=false; micBtn.classList.remove('rec'); micBtn.textContent='🎤'; micBtn.title='Voice note — record & transcribe'; }
+  micBtn.addEventListener('click',()=>{
+    if(recording){ try{ rec&&rec.stop(); }catch(_){ } return; }
+    rec=new SR(); rec.lang=navigator.language||'en-US'; rec.continuous=true; rec.interimResults=true;
+    const ta=document.getElementById('logNote'); baseNote=ta.value?ta.value.trim()+' ':''; finalText='';
+    rec.onresult=e=>{
+      let interim='';
+      for(let i=e.resultIndex;i<e.results.length;i++){ const t=e.results[i][0].transcript; if(e.results[i].isFinal) finalText+=t+' '; else interim+=t; }
+      ta.value=baseNote+finalText+interim;
+    };
+    rec.onerror=ev=>{ stopUI(); if(ev.error==='not-allowed'||ev.error==='service-not-allowed') alert('Microphone permission is needed for voice notes.'); };
+    rec.onend=()=>{ stopUI(); document.getElementById('logNote').focus(); };
+    try{ rec.start(); recording=true; micBtn.classList.add('rec'); micBtn.textContent='⏹'; micBtn.title='Stop & transcribe'; }catch(_){ stopUI(); }
+  });
+})();
+document.getElementById('logList').addEventListener('click',e=>{
+  const b=e.target.closest('.log-del'); if(!b) return;
+  brewLog.splice(+b.dataset.i,1); saveLog(); renderLog();
+});
+document.getElementById('logClear').addEventListener('click',()=>{
+  if(!brewLog.length) return;
+  if(confirm('Clear the whole brew log?')){ brewLog=[]; saveLog(); renderLog(); }
+});
+document.getElementById('logExport').addEventListener('click',()=>{
+  const txt = brewLog.length
+    ? brewLog.slice().reverse().map(e=>{
+        const when=fmtWhen(e.ts), tag=e.beer?` [${e.beer}]`:'';
+        return e.type==='data' ? `${when}${tag}  ${e.label||'reading'}: ${e.value||''}` : `${when}${tag}  ${e.text||''}`;
+      }).join('\n')
+    : '(empty)';
+  openListModal('Brew log', 'brew-log.txt', txt);
+});
+renderLog(); updateLogHint();
+
+document.getElementById('dlOne').addEventListener('click',()=>{
+  const entry={name:beer.name,vol,mode,lines:currentLines()};
+  openListModal('Shopping list — '+beer.name, `shopping-${slug(beer.name)}-${vol}L.txt`, buildOneText(entry));
+});
+document.getElementById('addCart').addEventListener('click',()=>{
+  CART.push({name:beer.name,vol,mode,lines:currentLines()}); renderCart();
+});
+document.getElementById('cart').addEventListener('click',e=>{
+  const rm=e.target.closest('button[data-i]');
+  if(rm){ CART.splice(+rm.dataset.i,1); renderCart(); return; }
+  if(e.target.id==='dlCart'){ openListModal('Combined shopping list','shopping-combined.txt', buildCombinedText()); return; }
+  if(e.target.id==='clearCart'){ CART.length=0; renderCart(); return; }
+});
+
+/* ---- printable brew sheet ---- */
+function sheetGrainRows(){
+  const k=vol/BASE, rows=[];
+  if(mode==='extract'){
+    rows.push([lmeType(), Math.round(lmeKg()*k*1000), '']);
+    steepGrains().forEach(g=>rows.push([g.n, Math.round(g.kg*k*1000), '']));
+    extras().forEach(g=>rows.push([g.n, Math.round(g.kg*k*1000), '']));
+  } else {
+    const tot=beer.grains.filter(g=>g.mash!==false).reduce((s,g)=>s+g.kg,0);
+    beer.grains.forEach(g=>{
+      const grams=Math.round(g.kg*k*1000);
+      const pct=(g.mash!==false&&tot)?Math.round(g.kg/tot*100)+'%':'';
+      rows.push([g.n, grams, pct]);
+    });
+  }
+  return rows;
+}
+function buildSheetHTML(){
+  const k=vol/BASE;
+  const grainRows=sheetGrainRows();
+  const totG=grainRows.reduce((s,r)=>s+(typeof r[1]==='number'?r[1]:0),0);
+  const boilHops=beer.hops.filter(h=>typeof h.t==='number').sort((a,b)=>b.t-a.t);
+  const dryHops=beer.hops.filter(h=>typeof h.t!=='number');
+  const first=(beer.mash.find(x=>/^\d+$/.test(String(x.t)))||beer.mash[0]).t, last=beer.mash[beer.mash.length-1].t;
+  const mashTime=beer.mash.reduce((s,m)=>s+(typeof m.m==='number'?m.m:0),0);
+  const chk=(on,label)=>`<span>${on?'☒':'☐'} ${label}</span>`;
+  const ex=(v)=>`<td>${v}</td><td class="blank"></td>`; // expected / actual
+  const blankRow=(cells)=>'<tr>'+cells.map(c=>`<td class="blank">${c||''}</td>`).join('')+'</tr>';
+
+  const grainTable=`<table><tr><th>Grain / fermentable</th><th>Amount (g)</th><th>%</th></tr>`+
+    grainRows.map(r=>`<tr><td>${r[0]}</td><td>${r[1]}</td><td>${r[2]||''}</td></tr>`).join('')+
+    `<tr><th>Total</th><th>${totG}</th><th></th></tr></table>`;
+
+  const hopTable=`<table><tr><th>Hops</th><th>Amount (g)</th><th>Time (min)</th><th>IBU</th></tr>`+
+    (boilHops.length?boilHops.map(h=>`<tr><td>${h.n}</td><td>${Math.round(h.g*k)}</td><td>${h.t}</td><td class="blank"></td></tr>`).join('')
+      :`<tr><td class="blank"></td><td class="blank"></td><td class="blank"></td><td class="blank"></td></tr>`)+
+    `</table>`;
+
+  const page1=`
+  <div class="sheet-page">
+    <h1>${beer.name}</h1>
+    <div class="sub">${beer.style}</div>
+    <div class="meta">
+      <div><b>Brew #</b>______</div><div><b>Brew date</b>____________</div>
+      <div><b>Style</b>${beer.style.split(' · ')[0]}</div>
+    </div>
+    <div class="meta">
+      <div><b>ABV</b>${beer.abv}</div><div><b>IBU</b>${beer.ibu}</div>
+      <div><b>OG</b>${beer.og}</div><div><b>FG</b>${beer.fg}</div>
+      <div><b>SRM</b>${beer.srm}</div><div><b>Cost / unit</b>______</div>
+      <div><b>Kegged date</b>______</div><div><b>Score</b>____</div>
+    </div>
+    <div class="chips">
+      ${chk(mode!=='extract','Brew-in-a-bag')} ${chk(mode!=='extract','Whole grain')} ${chk(mode==='extract','Extract (LME/DME)')} ${chk(false,'Water agents')} ${chk(beer.type==='lager'||parseFloat(beer.og)>=1.07,'Pre-starter')}
+    </div>
+    <div class="grid2">
+      <div>${grainTable}</div>
+      <div>${hopTable}
+        <h3>Yeast</h3>
+        <div class="notebox" style="min-height:32px;padding:5px 7px;font-size:12px">${beer.yeast} — pitch ${packsFor()}</div>
+      </div>
+    </div>
+    <div class="grid2">
+      <div>
+        <h3>Mashing</h3>
+        <table><tr><th>Mashing</th><th>Expected</th><th>Actual</th></tr>
+          <tr><td>Batch size (L)</td>${ex(vol)}</tr>
+          <tr><td>Water:grain ratio</td>${ex('~3:1')}</tr>
+          <tr><td>Strike water (L)</td>${ex(fmtL(waterVols().strike))}</tr>
+          <tr><td>Sparge water (L)</td>${ex(fmtL(waterVols().sparge))}</tr>
+          <tr><td>Strike temp (°C)</td>${ex(first+4)}</tr>
+          <tr><td>Mash time (min)</td>${ex(mashTime)}</tr>
+          <tr><td>Mash-in temp (°C)</td><td>${first}</td>${aCell(latestActual(['mash temp','mash-in','mash in']))}</tr>
+          <tr><td>Mash-out temp (°C)</td>${ex(last)}</tr>
+          <tr><td>Sparge temp (°C)</td>${ex(76)}</tr>
+        </table>
+      </div>
+      <div>
+        <h3>Boil</h3>
+        <table><tr><th>Boil</th><th>Expected</th><th>Actual</th></tr>
+          <tr><td>Total boil (min)</td>${ex(beer.boil)}</tr>
+          <tr><td>Pre-boil vol (L)</td><td>${waterVols().preBoil.toFixed(1)}</td>${aCell(latestActual(['pre-boil','pre boil','preboil']))}</tr>
+          <tr><td>Post-boil vol (L)</td><td>${vol}</td>${aCell(latestActual(['post-boil','final volume','batch volume']))}</tr>
+        </table>
+        <h3>Chilling + fermenter</h3>
+        <table><tr><th>&nbsp;</th><th>Expected</th><th>Actual</th></tr>
+          <tr><td>Pitch / chill to (°C)</td><td>${beer.pitch}</td>${aCell(latestActual(['pitch','chill']))}</tr>
+          <tr><td>Original gravity</td><td>${beer.og}</td>${aCell(latestActual(['og','original gravity']))}</tr>
+          <tr><td>Final gravity</td><td>${beer.fg}</td>${aCell(latestActual(['fg','final gravity']))}</tr>
+        </table>
+      </div>
+    </div>
+    <h3>Notes</h3><div class="notebox"></div>
+  </div>`;
+
+  const fermRows=fermPlan(beer).map(f=>`<tr><td>${f.h}</td><td>${f.meta}</td><td class="blank"></td><td class="blank"></td></tr>`).join('');
+  const dryTable=`<table><tr><th>Dry hopping</th><th>Amount (g)</th><th>Day</th><th>Note</th></tr>`+
+    (dryHops.length?dryHops.map(h=>`<tr><td>${h.n}</td><td>${Math.round(h.g*k)}</td><td class="blank"></td><td class="blank"></td></tr>`).join('')
+      :`<tr><td class="blank">—</td><td class="blank"></td><td class="blank"></td><td class="blank"></td></tr>`)+`</table>`;
+
+  const page2=`
+  <div class="sheet-page">
+    <h3>Dry hopping</h3>${dryTable}
+    <h3>Fermentation log</h3>
+    <table><tr><th>Stage / day</th><th>Plan</th><th>Temp</th><th>SG</th></tr>
+      ${fermRows}
+      ${blankRow(['','','',''])}${blankRow(['','','',''])}
+    </table>
+    <div class="grid2">
+      <div>
+        <h3>Cost</h3>
+        <table>
+          ${['Grains','Hops','Yeast','Ice','Water','Other','TOTAL'].map(c=>`<tr><td>${c}</td><td class="blank"></td></tr>`).join('')}
+        </table>
+      </div>
+      <div>
+        <h3>Other notes</h3><div class="notebox" style="min-height:150px"></div>
+      </div>
+    </div>
+    <h3>Tasting</h3>
+    <table><tr><th>Category</th><th>Notes</th><th>1–5</th></tr>
+      ${['Aroma','Appearance','Flavor','Mouthfeel','Overall'].map(c=>`<tr><td>${c}</td><td class="blank"></td><td class="score">◯ ◯ ◯ ◯ ◯</td></tr>`).join('')}
+    </table>
+    <h3>Tasting notes</h3><div class="notebox"></div>
+    ${sheetActuals()}
+  </div>`;
+
+  return page1+page2;
+}
+function latestActual(keys){
+  try{ for(const e of (brewLog||[])){ if(e.type!=='data') continue; if(e.beer && e.beer!==beer.name) continue; const lab=(e.label||'').toLowerCase(); if(keys.some(k=>lab.includes(k))) return e.value||''; } }catch(_){}
+  return '';
+}
+function aCell(v){ return v ? `<td>${lEsc(v)}</td>` : '<td class="blank"></td>'; }
+function sheetActuals(){
+  // headline target-vs-actual, auto-filled from anything you've logged
+  const finals=`<table><tr><th>Final numbers</th><th>Target</th><th>Actual</th></tr>
+    <tr><td>Original gravity</td><td>${beer.og}</td>${aCell(latestActual(['og','original gravity']))}</tr>
+    <tr><td>Final gravity</td><td>${beer.fg}</td>${aCell(latestActual(['fg','final gravity']))}</tr>
+    <tr><td>ABV</td><td>${beer.abv}</td>${aCell(latestActual(['abv']))}</tr>
+    <tr><td>Batch volume (L)</td><td>${vol}</td>${aCell(latestActual(['final volume','batch volume','post-boil']))}</tr>
+    <tr><td>Mash efficiency (%)</td><td>—</td>${aCell(latestActual(['efficiency']))}</tr>
+    <tr><td>Attenuation (%)</td><td>—</td>${aCell(latestActual(['attenuation']))}</tr>
+  </table>`;
+  let logged='';
+  try{
+    const mine=(brewLog||[]).filter(e=>!e.beer || e.beer===beer.name).slice().reverse();
+    const rows=mine.map(e=>{
+      const when=fmtWhen(e.ts);
+      const what=e.type==='data' ? lEsc(e.label||'reading') : 'Note';
+      const val=e.type==='data' ? lEsc(e.value||'') : lEsc(e.text||'');
+      return `<tr><td>${when}</td><td>${what}</td><td>${val}</td></tr>`;
+    }).join('');
+    const need=Math.max(4, 8-mine.length);
+    const blanks=Array.from({length:need}).map(()=>`<tr><td class="blank"></td><td class="blank"></td><td class="blank"></td></tr>`).join('');
+    logged=`<table><tr><th>When</th><th>Measurement / note</th><th>Value</th></tr>${rows}${blanks}</table>`;
+  }catch(e){ logged=''; }
+  return `<h3>Actuals &amp; brew log</h3><div class="grid2"><div>${finals}</div><div>${logged}</div></div>`;
+}
+function openSheet(){
+  document.getElementById('sheetBody').innerHTML=buildSheetHTML();
+  document.getElementById('sheetOverlay').hidden=false;
+}
+document.getElementById('brewSheet').addEventListener('click',openSheet);
+document.getElementById('sheetClose').addEventListener('click',()=>{ document.getElementById('sheetOverlay').hidden=true; });
+document.getElementById('sheetPrint').addEventListener('click',()=>{ window.print(); });
+
+/* ================= SPIRITS & LIQUEURS ================= */
+// Amounts are per 1 L of finished product; scaled by chosen finished volume.
+// unit: 'ml' | 'g' | 'pcs'.  base = the clear distilled starting product.
+const SPIRITS=[
+ {id:'limoncello',name:'Limoncello',style:'Lemon liqueur · Italy',desc:'Bright lemon liqueur from peel macerated in neutral spirit, then sweetened. Serve ice-cold.',
+  base:'Neutral grain spirit 95% — 350 ml (or 600 ml vodka 40%)', baseMl:350, abv:'~30%', macerate:'7–14 days', sweet:'High', yield:'~1 L',
+  ing:[{n:'Organic lemons (zest only)',note:'no white pith — it turns it bitter',amt:6,unit:'pcs'},{n:'Sugar',note:'for the syrup',amt:300,unit:'g'},{n:'Water',note:'for the syrup',amt:350,unit:'ml'}],
+  method:[{h:'Peel & macerate',meta:'7–14 days, dark, room temp',p:'Zest the lemons thinly, drop the peel into the spirit, seal and steep until the spirit is deep yellow and the peel is pale.'},{h:'Make syrup',meta:'cool fully',p:'Dissolve the sugar in the water, simmer briefly, then cool to room temperature.'},{h:'Combine & rest',meta:'1–2 weeks',p:'Strain out the peel, blend the infused spirit with the syrup, bottle, and rest before drinking.'}],
+  tips:'Use only the colored zest. Freeze before serving. Higher-proof base extracts more oils, then the syrup dilutes to ~30%.'},
+
+ {id:'arancello',name:'Arancello (orange)',style:'Orange liqueur · Italy',desc:'The orange cousin of limoncello — sweeter and rounder.',
+  base:'Neutral grain spirit 95% — 350 ml (or 600 ml vodka 40%)', baseMl:350, abv:'~30%', macerate:'10–20 days', sweet:'High', yield:'~1 L',
+  ing:[{n:'Organic oranges (zest only)',note:'no pith',amt:4,unit:'pcs'},{n:'Sugar',note:'syrup',amt:280,unit:'g'},{n:'Water',note:'syrup',amt:350,unit:'ml'}],
+  method:[{h:'Peel & macerate',meta:'10–20 days',p:'Zest the oranges, macerate the peel in the spirit until vivid.'},{h:'Syrup',meta:'cool fully',p:'Dissolve sugar in water, cool.'},{h:'Combine & rest',meta:'2 weeks',p:'Strain, blend with syrup, bottle and rest.'}],
+  tips:'A cinnamon stick or a few cloves in the macerate adds warmth.'},
+
+ {id:'gin',name:'Compound Gin',style:'Botanical spirit',desc:'Quick "bathtub" gin — steep botanicals in neutral spirit and strain. No still required.',
+  base:'Neutral grain spirit / vodka 40% — 700 ml', baseMl:700, abv:'~40%', macerate:'24–48 h', sweet:'None', yield:'~0.7 L',
+  ing:[{n:'Juniper berries (lightly crushed)',note:'the backbone',amt:25,unit:'g'},{n:'Coriander seed',amt:6,unit:'g'},{n:'Angelica root',note:'binds the aromatics',amt:3,unit:'g'},{n:'Citrus peel (lemon/orange)',amt:6,unit:'g'},{n:'Cardamom / other botanicals',note:'to taste',amt:2,unit:'g'}],
+  method:[{h:'Steep juniper',meta:'24 h',p:'Add juniper to the spirit first for a clean piney base.'},{h:'Add botanicals',meta:'+8–24 h',p:'Add the remaining botanicals; taste hourly — they extract fast.'},{h:'Strain',meta:'fine filter',p:'Strain through a coffee filter until clear. Optionally cut with a little water to taste.'}],
+  tips:'Go light on roots and spices — they can dominate quickly. Taste often and pull early.'},
+
+ {id:'aperol',name:'Aperitivo (Aperol-style)',style:'Bitter-orange aperitif',desc:'Homemade bittersweet orange aperitivo at ~11% ABV. The real Aperol is a secret blend of 16 botanicals (known ones: gentian, cinchona, Chinese rhubarb, bitter & sweet orange, a hint of vanilla), unchanged since 1919 — this is a faithful clone, not the original.',
+  base:'Neutral grain spirit 95% — 120 ml (macerate high-proof, then dilute)', baseMl:120, abv:'~11%', macerate:'2–3 weeks', sweet:'High', yield:'~1 L',
+  ing:[{n:'Bitter orange peel (dried)',note:'the backbone',amt:30,unit:'g'},{n:'Sweet orange peel (dried)',amt:25,unit:'g'},{n:'Gentian root',note:'bitter spine — use sparingly',amt:4,unit:'g'},{n:'Chinese rhubarb root',note:'tart sharpness',amt:5,unit:'g'},{n:'Cinchona bark',note:'quinine bitterness',amt:2,unit:'g'},{n:'Vanilla pod (small piece)',amt:0.25,unit:'pcs'},{n:'Sugar',note:'syrup',amt:300,unit:'g'},{n:'Water',note:'syrup + dilution to ~11%',amt:600,unit:'ml'}],
+  method:[{h:'Cold macerate',meta:'2–3 weeks, dark',p:'Steep peels, roots and bark in the high-proof spirit, shaking occasionally. A cool maceration keeps it fresh.'},{h:'Sweeten & dilute',meta:'cool syrup',p:'Strain, then blend with sugar syrup and water to land around 11% ABV.'},{h:'Rest & serve',meta:'1 week',p:'Let it marry — no aging needed. Spritz: 2 parts aperitivo, 3 Prosecco, 1 soda.'}],
+  tips:'Gentian and cinchona are intensely bitter — measure carefully. Aperol\u2019s neon glow is added colour; yours will be a natural amber-orange. A touch of vanilla rounds the edges.'},
+
+ {id:'campari',name:'Bitter (Campari-style)',style:'Red bitter aperitif',desc:'Deep crimson, assertive bitter aperitivo (~25% ABV). Campari\u2019s recipe is famously secret; commonly cited botanicals are gentian, rhubarb, cascarilla bark, ginseng and chinotto/bitter orange. This is a clone — the original is unknowable.',
+  base:'Neutral grain spirit 95% — 320 ml', baseMl:320, abv:'~25%', macerate:'2–3 weeks', sweet:'Medium-high', yield:'~1 L',
+  ing:[{n:'Bitter orange / chinotto peel',amt:25,unit:'g'},{n:'Gentian root',amt:6,unit:'g'},{n:'Cascarilla bark',note:'aromatic bitterness',amt:3,unit:'g'},{n:'Rhubarb root',amt:5,unit:'g'},{n:'Ginseng or wormwood',note:'earthy depth — sparing',amt:2,unit:'g'},{n:'Hibiscus',note:'natural red colour',amt:10,unit:'g'},{n:'Sugar',note:'syrup',amt:280,unit:'g'},{n:'Water',note:'syrup + dilution',amt:350,unit:'ml'}],
+  method:[{h:'Macerate',meta:'2–3 weeks',p:'Steep botanicals and hibiscus in the spirit.'},{h:'Sweeten & dilute',meta:'cool syrup',p:'Strain, add syrup and water to ~25% ABV.'},{h:'Rest',meta:'1–2 weeks',p:'Rest to round the bitterness.'}],
+  tips:'Campari\u2019s red historically came from cochineal (carmine); hibiscus is a natural stand-in. Bolder and more bitter than Aperol — dial gentian to taste.'},
+
+ {id:'coffee',name:'Coffee liqueur',style:'Kahlúa-style',desc:'Smooth coffee-and-vanilla liqueur — easy and forgiving.',
+  base:'Vodka / neutral spirit 40% — 350 ml', baseMl:350, abv:'~22%', macerate:'1–2 weeks', sweet:'High', yield:'~1 L',
+  ing:[{n:'Strong brewed coffee / espresso',note:'cooled',amt:350,unit:'ml'},{n:'Sugar',amt:300,unit:'g'},{n:'Vanilla pod (split)',amt:1,unit:'pcs'}],
+  method:[{h:'Syrup',meta:'cool',p:'Dissolve the sugar into the hot coffee, add the split vanilla pod, cool.'},{h:'Combine',meta:'—',p:'Stir in the spirit.'},{h:'Rest',meta:'1–2 weeks',p:'Age so the vanilla and coffee meld; remove the pod after a week.'}],
+  tips:'Use fresh espresso for the best aroma. A spoon of cocoa nibs in the macerate adds depth.'},
+
+ {id:'nocino',name:'Nocino (green walnut)',style:'Walnut liqueur · Italy',desc:'Dark, spiced liqueur from unripe green walnuts — traditionally picked midsummer.',
+  base:'Neutral grain spirit 95% — 400 ml', baseMl:400, abv:'~30%', macerate:'6–8 weeks', sweet:'High', yield:'~1 L',
+  ing:[{n:'Green (unripe) walnuts, quartered',note:'wear gloves — they stain',amt:15,unit:'pcs'},{n:'Sugar',amt:300,unit:'g'},{n:'Lemon zest',amt:1,unit:'pcs'},{n:'Cloves',amt:3,unit:'pcs'},{n:'Cinnamon stick',amt:1,unit:'pcs'}],
+  method:[{h:'Macerate',meta:'6–8 weeks, in light',p:'Steep quartered walnuts, sugar and spices in the spirit; it turns inky black.'},{h:'Strain',meta:'—',p:'Strain out solids through cloth.'},{h:'Age',meta:'2–3 months+',p:'Bottle and age — it mellows a lot over months.'}],
+  tips:'Pick walnuts before the shell hardens (around June). Patience: nocino is much better after several months.'},
+
+ {id:'amaro',name:'Amaro (herbal)',style:'Herbal digestivo',desc:'Bittersweet herbal digestif — a flexible blend of bittering and aromatic botanicals.',
+  base:'Neutral grain spirit 95% — 350 ml', baseMl:350, abv:'~30%', macerate:'3–4 weeks', sweet:'Medium', yield:'~1 L',
+  ing:[{n:'Gentian root',note:'bittering',amt:5,unit:'g'},{n:'Orange peel',amt:15,unit:'g'},{n:'Wormwood',amt:2,unit:'g'},{n:'Mint / lemon balm',amt:5,unit:'g'},{n:'Cinnamon, clove, star anise',note:'aromatics',amt:6,unit:'g'},{n:'Sugar',note:'syrup',amt:250,unit:'g'},{n:'Water',note:'syrup',amt:300,unit:'ml'}],
+  method:[{h:'Macerate',meta:'3–4 weeks',p:'Steep botanicals in the spirit, tasting weekly.'},{h:'Sweeten',meta:'cool syrup',p:'Strain and balance with syrup to taste.'},{h:'Rest',meta:'3–4 weeks',p:'Age to integrate — amari improve with time.'}],
+  tips:'Build it in layers: get the bitter base right, then sweeten gradually. Keep notes so you can repeat it.'},
+
+ {id:'sloegin',name:'Sloe Gin',style:'Fruit gin · UK',desc:'Gin steeped with sloe berries and sugar into a ruby, almondy liqueur.',
+  base:'Gin 40% — 700 ml', baseMl:700, abv:'~26%', macerate:'2–3 months', sweet:'High', yield:'~1 L',
+  ing:[{n:'Sloes (pricked or frozen)',amt:450,unit:'g'},{n:'Sugar',amt:225,unit:'g'}],
+  method:[{h:'Combine',meta:'—',p:'Prick or freeze the sloes, add to the gin with the sugar in a large jar.'},{h:'Macerate',meta:'2–3 months',p:'Shake every few days for the first weeks to dissolve the sugar; store dark.'},{h:'Strain & age',meta:'+1 month',p:'Strain off the fruit and bottle; it keeps improving.'}],
+  tips:'Frost sloes (or freeze them) to split the skins. Best made in autumn for Christmas.'},
+
+ {id:'triplesec',name:'Triple Sec',style:'Orange liqueur',desc:'Clear, dry orange liqueur for cocktails — Margaritas, Cosmos, sidecars.',
+  base:'Neutral grain spirit 95% — 400 ml', baseMl:400, abv:'~35%', macerate:'1–2 weeks', sweet:'Medium', yield:'~1 L',
+  ing:[{n:'Bitter orange peel (dried)',amt:25,unit:'g'},{n:'Sweet orange peel (dried)',amt:25,unit:'g'},{n:'Sugar',note:'light syrup',amt:200,unit:'g'},{n:'Water',note:'syrup + dilution',amt:300,unit:'ml'}],
+  method:[{h:'Macerate peels',meta:'1–2 weeks',p:'Steep both peels in the high-proof spirit.'},{h:'Sweeten & dilute',meta:'cool syrup',p:'Strain, add light syrup and water to ~35%.'},{h:'Rest',meta:'1 week',p:'Rest, then filter clear.'}],
+  tips:'A blend of bitter and sweet peel gives the classic dry-orange profile.'},
+
+ {id:'sambuca',name:'Anise liqueur (Sambuca-style)',style:'Anise liqueur · Italy',desc:'Clear, sweet, intensely anise liqueur.',
+  base:'Neutral grain spirit 95% — 350 ml', baseMl:350, abv:'~38%', macerate:'1–2 weeks', sweet:'High', yield:'~1 L',
+  ing:[{n:'Star anise',amt:12,unit:'g'},{n:'Fennel seed',amt:6,unit:'g'},{n:'Sugar',note:'syrup',amt:350,unit:'g'},{n:'Water',note:'syrup + dilution',amt:350,unit:'ml'}],
+  method:[{h:'Macerate',meta:'1–2 weeks',p:'Steep star anise and fennel in the spirit until strongly aromatic.'},{h:'Sweeten & dilute',meta:'cool syrup',p:'Strain, add a heavy syrup and water to ~38%.'},{h:'Rest',meta:'1 week',p:'Rest and filter; it should be crystal clear.'}],
+  tips:'Sambuca is heavily sweetened — don\u2019t skimp on the syrup.'},
+
+ {id:'mint',name:'Crème de menthe',style:'Mint liqueur',desc:'Fresh, sweet mint liqueur — green or clear.',
+  base:'Neutral grain spirit / vodka 40% — 350 ml', baseMl:350, abv:'~24%', macerate:'3–7 days', sweet:'High', yield:'~1 L',
+  ing:[{n:'Fresh mint leaves',amt:60,unit:'g'},{n:'Sugar',note:'syrup',amt:350,unit:'g'},{n:'Water',note:'syrup',amt:400,unit:'ml'}],
+  method:[{h:'Macerate mint',meta:'3–7 days',p:'Steep fresh mint in the spirit; taste daily and pull when bright (over-steeping turns it grassy).'},{h:'Sweeten',meta:'cool syrup',p:'Strain, blend with syrup.'},{h:'Rest',meta:'few days',p:'Rest briefly; best fresh.'}],
+  tips:'Pull the mint as soon as the flavor is bright. A drop of food colour gives the classic green.'}
+];
+
+let spirit=SPIRITS[0], svol=1, category='beer';
+function fmtAmtSpirit(amt,unit){
+  if(unit==='pcs'){ const n=amt; return (Math.round(n*10)/10)+(n===1?' pc':' pcs'); }
+  if(unit==='g') return amt>=1000?(amt/1000).toFixed(2)+' kg':Math.round(amt)+' g';
+  if(unit==='ml') return amt>=1000?(amt/1000).toFixed(2)+' L':Math.round(amt)+' ml';
+  return amt+' '+unit;
+}
+function renderSpirit(){
+  const k=svol;
+  document.getElementById('eyebrow').textContent=spirit.style.split(' · ')[0];
+  document.getElementById('title').textContent=spirit.name;
+  document.getElementById('styleLine').textContent=spirit.style;
+  document.getElementById('sDesc').textContent=spirit.desc;
+  document.getElementById('sStats').innerHTML=
+    [['ABV',spirit.abv],['MACERATE',spirit.macerate],['SWEET',spirit.sweet],['YIELD',spirit.yield]]
+    .map(([l,n])=>`<div class="stat"><div class="n" style="font-size:14px">${n}</div><div class="l">${l}</div></div>`).join('');
+  // base spirit scales with finished volume
+  const baseMl=Math.round(spirit.baseMl*k);
+  document.getElementById('sBase').textContent = baseMl>=1000?(baseMl/1000).toFixed(2)+' L':baseMl+' ml';
+  document.getElementById('sBaseNote').textContent = spirit.base;
+  document.getElementById('sIngredients').innerHTML = spirit.ing.map(i=>
+    `<div class="row"><div class="name">${i.n}${i.note?`<small>${i.note}</small>`:''}</div><div class="amt">${fmtAmtSpirit(i.amt*k,i.unit)}</div></div>`).join('');
+  document.getElementById('sNote').innerHTML=`<b>Starting point:</b> a clear distilled base (neutral grain spirit or vodka). Amounts scale to your <b>${svol} L</b> finished volume. Taste as you go — macerations vary with ingredient strength.`;
+  document.getElementById('sMethod').innerHTML = spirit.method.map(m=>
+    `<div class="ferm-step"><h3>${m.h}</h3><div class="meta">${m.meta}</div><p>${m.p}</p></div>`).join('');
+  document.getElementById('sTips').innerHTML=`<b>Tips.</b> ${spirit.tips}`;
+}
+function setSVol(v){
+  svol=v; document.getElementById('sVol').textContent=v;
+  const s=document.getElementById('sSlider');
+  const p=(v-s.min)/(s.max-s.min)*100; s.style.setProperty('--p',p+'%');
+  document.querySelectorAll('#sPresets .preset').forEach(b=>b.classList.toggle('on',+b.dataset.v===v));
+  renderSpirit();
+}
+// spirit shopping list + card reuse the modal / sheet overlay
+function spiritListText(){
+  const k=svol;
+  let t=`SHOPPING LIST — ${spirit.name}\nFinished volume: ${svol} L · ${spirit.abv} ABV\n\nBASE SPIRIT\n  [ ] ${spirit.base} (scaled: ${(spirit.baseMl*k>=1000?(spirit.baseMl*k/1000).toFixed(2)+' L':Math.round(spirit.baseMl*k)+' ml')})\n\nINGREDIENTS\n`;
+  spirit.ing.forEach(i=>{ t+=`  [ ] ${i.n} — ${fmtAmtSpirit(i.amt*k,i.unit)}\n`; });
+  t+=`\nMETHOD\n`; spirit.method.forEach((m,idx)=>{ t+=`  ${idx+1}. ${m.h} (${m.meta})\n`; });
+  t+=`\n— Brew Card. Homemade infusions; taste and adjust.\n`;
+  return t;
+}
+function buildSpiritSheetHTML(){
+  const k=svol;
+  const ingRows=spirit.ing.map(i=>`<tr><td>${i.n}${i.note?` <span class="sub">(${i.note})</span>`:''}</td><td>${fmtAmtSpirit(i.amt*k,i.unit)}</td></tr>`).join('');
+  const methodRows=spirit.method.map((m,i)=>`<tr><td>${i+1}. ${m.h}</td><td>${m.meta}</td><td>${m.p}</td></tr>`).join('');
+  return `<div class="sheet-page">
+    <h1>${spirit.name}</h1><div class="sub">${spirit.style}</div>
+    <div class="meta"><div><b>ABV</b>${spirit.abv}</div><div><b>Macerate</b>${spirit.macerate}</div><div><b>Sweetness</b>${spirit.sweet}</div><div><b>Yield</b>${spirit.yield}</div><div><b>Finished vol</b>${svol} L</div><div><b>Made on</b>__________</div></div>
+    <h3>Base spirit</h3>
+    <div class="notebox" style="min-height:30px;padding:6px 8px;font-size:12px">${spirit.base} — scaled: ${(spirit.baseMl*k>=1000?(spirit.baseMl*k/1000).toFixed(2)+' L':Math.round(spirit.baseMl*k)+' ml')}</div>
+    <h3>Ingredients</h3>
+    <table><tr><th>Ingredient</th><th>Amount</th></tr>${ingRows}</table>
+    <h3>Method</h3>
+    <table><tr><th>Step</th><th>Time</th><th>Notes</th></tr>${methodRows}</table>
+    <h3>Tips</h3><div class="notebox" style="min-height:44px;padding:6px 8px;font-size:12px">${spirit.tips}</div>
+    <h3>Log / tasting notes</h3><div class="notebox"></div>
+  </div>`;
+}
+document.getElementById('sDlOne').addEventListener('click',()=>openListModal('Shopping list — '+spirit.name, `shopping-${slug(spirit.name)}-${svol}L.txt`, spiritListText()));
+document.getElementById('sCard').addEventListener('click',()=>{ document.getElementById('sheetBody').innerHTML=buildSpiritSheetHTML(); document.getElementById('sheetOverlay').hidden=false; });
+document.getElementById('sSlider').addEventListener('input',e=>setSVol(+e.target.value));
+document.getElementById('sPresets').addEventListener('click',e=>{ const b=e.target.closest('.preset'); if(!b)return; document.getElementById('sSlider').value=b.dataset.v; setSVol(+b.dataset.v); });
+
+// populate spirit picker
+const spiritPicker=document.getElementById('spiritPicker');
+SPIRITS.forEach((s,i)=>{ const o=document.createElement('option'); o.value=i; o.textContent=s.name; spiritPicker.appendChild(o); });
+spiritPicker.addEventListener('change',e=>{ spirit=SPIRITS[+e.target.value]; renderSpirit(); });
+
+// category toggle
+document.getElementById('catToggle').addEventListener('click',e=>{
+  const b=e.target.closest('button'); if(!b) return;
+  category=b.dataset.cat;
+  document.querySelectorAll('#catToggle button').forEach(x=>x.classList.toggle('on',x===b));
+  const beerV=document.getElementById('beerView'), spiritV=document.getElementById('spiritView');
+  if(category==='spirit'){ beerV.hidden=true; spiritV.hidden=false; renderSpirit(); setSVol(svol); }
+  else { spiritV.hidden=true; beerV.hidden=false; renderHeader(); }
+  document.querySelector('footer').innerHTML = category==='spirit'
+    ? 'Homemade infusions from a clear distilled base. Amounts scale with finished volume.<br>Macerations vary — taste and adjust. Drink responsibly. 🍸'
+    : 'Stats stay constant per style; quantities rescale with batch size.<br>Recipes are solid starting points — tune to your system &amp; taste.<br>Cheers! 🍺';
+});
+
+buildChips(); suggest();
+renderAll();
+</script>
+<script>if('serviceWorker' in navigator){window.addEventListener('load',function(){navigator.serviceWorker.register('./sw.js').catch(function(){});});}</script>
+</body>
+</html>
