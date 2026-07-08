@@ -397,11 +397,13 @@
         <button class="jump-chip on" id="carbKeg">🛢 Keg (CO₂)</button>
         <button class="jump-chip" id="carbBottle">🍾 Bottle (priming)</button>
       </div>
-      <div class="ed-row">
+      <div class="ed-row" style="align-items:center">
         <span class="ed-unit" style="flex:1">Fridge / conditioning temp</span>
-        <input class="ed-amt" id="carbTemp" type="number" step="0.5" inputmode="decimal" value="3">
-        <button class="mini-btn" id="carbUnit">°C</button>
+        <b id="carbTempLabel" style="color:var(--gold-bright);font-family:'Oswald',sans-serif;font-size:17px;min-width:56px;text-align:right">3 °C</b>
+        <button class="mini-btn" id="carbUnit">°C ⇄ °F</button>
       </div>
+      <input type="range" class="boil-knob" id="carbTemp" min="-2" max="25" step="0.5" value="3" aria-label="carbonation temperature">
+      <div class="knob-scale"><span id="carbTMin">-2 °C</span><span id="carbTMax">25 °C</span></div>
       <div class="ed-row">
         <span class="ed-unit" style="flex:1">Target CO₂ volumes <span id="carbSug"></span></span>
         <input class="ed-amt" id="carbVols" type="number" step="0.1" min="1" max="4" inputmode="decimal">
@@ -1225,7 +1227,13 @@ function renderCarb(){
   const V = carb.vols!=null ? carb.vols : suggestVols();
   document.getElementById('carbVols').value=V;
   document.getElementById('carbSug').textContent=`· suggested for this style: ${suggestVols().toFixed(1)}`;
-  document.getElementById('carbUnit').textContent=carb.unit==='C'?'°C':'°F';
+  const s=document.getElementById('carbTemp');
+  const lo=carb.unit==='C'?-2:28, hi=carb.unit==='C'?25:77;
+  s.min=lo; s.max=hi; s.value=carb.temp;
+  s.style.setProperty('--p',((carb.temp-lo)/(hi-lo)*100)+'%');
+  document.getElementById('carbTMin').textContent=`${lo} °${carb.unit}`;
+  document.getElementById('carbTMax').textContent=`${hi} °${carb.unit}`;
+  document.getElementById('carbTempLabel').textContent=`${carb.temp} °${carb.unit}`;
   document.getElementById('carbKeg').classList.toggle('on',carb.mode==='keg');
   document.getElementById('carbBottle').classList.toggle('on',carb.mode==='bottle');
   const F=carbTempF(), C=(F-32)*5/9;
@@ -1253,7 +1261,7 @@ document.getElementById('carbBottle').addEventListener('click',()=>{ carb.mode='
 document.getElementById('carbUnit').addEventListener('click',()=>{
   if(carb.unit==='C'){ carb.temp=Math.round(carbTempF()); carb.unit='F'; }
   else { carb.temp=Math.round((carb.temp-32)*5/9); carb.unit='C'; }
-  document.getElementById('carbTemp').value=carb.temp; renderCarb();
+  renderCarb();
 });
 document.getElementById('carbTemp').addEventListener('input',e=>{ const v=parseFloat(e.target.value); if(!isNaN(v)){ carb.temp=v; renderCarb(); } });
 document.getElementById('carbVols').addEventListener('input',e=>{ const v=parseFloat(e.target.value); carb.vols=isNaN(v)?null:v; renderCarb(); });
