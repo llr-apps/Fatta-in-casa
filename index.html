@@ -198,6 +198,19 @@
   .fs-k{color:var(--dim);font-family:'Oswald',sans-serif;letter-spacing:.04em;text-transform:uppercase;font-size:11.5px;flex:none}
   .fs-pct{color:var(--gold-bright);font-weight:700;font-family:'Oswald',sans-serif}
   .fs-note{font-size:12px;color:var(--dim);margin-top:9px;line-height:1.45}
+  .picker-row{display:flex;gap:8px;align-items:stretch}
+  .sec-head{cursor:pointer;-webkit-user-select:none;user-select:none;position:relative}
+  .sec-head::after{content:'▾';position:absolute;right:2px;top:50%;transform:translateY(-50%);color:var(--dim);font-size:14px;transition:transform .15s}
+  .section.collapsed .sec-head::after{transform:translateY(-50%) rotate(-90deg)}
+  .section.collapsed > *:not(.sec-head){display:none !important}
+  .section.collapsed{margin-bottom:10px}
+  .picker-row select{flex:1;min-width:0}
+  .icon-btn{flex:none;width:46px;background:var(--bg2);border:1px solid var(--line);border-radius:10px;font-size:19px;cursor:pointer;color:var(--foam)}
+  .icon-btn:active{border-color:var(--gold);background:var(--bg)}
+  .brew-name{font-family:'Oswald',sans-serif;color:var(--gold-bright);font-size:15px;letter-spacing:.04em;margin:8px 2px 0;font-style:italic}
+  .confetti{position:fixed;inset:0;pointer-events:none;overflow:hidden;z-index:999}
+  .confetti span{position:absolute;top:-8%;font-size:22px;animation:cfall linear forwards}
+  @keyframes cfall{to{transform:translateY(112vh) rotate(560deg);opacity:.85}}
 
   .ferm{position:relative;padding-left:26px}
   .ferm::before{content:"";position:absolute;left:8px;top:6px;bottom:6px;width:2px;background:var(--line)}
@@ -286,9 +299,12 @@
     <button data-cat="spirit">🍸 Spirits &amp; liqueurs</button>
   </div>
   <div id="beerView">
-  <div class="selector">
+  <div class="selector picker-row">
     <select id="picker"></select>
+    <button class="icon-btn" id="surprise" title="Surprise me — random style">🎲</button>
+    <button class="icon-btn" id="nameBrew" title="Name my brew">🍻</button>
   </div>
+  <div id="brewName" class="brew-name" hidden></div>
   <div class="desc" id="desc"></div>
 
   <div class="suggest">
@@ -375,12 +391,32 @@
   </div>
 
   <div class="section">
-    <div class="sec-head"><span class="sec-num">5</span><h2>Brew day, step by step</h2></div>
+    <div class="sec-head"><span class="sec-num">5</span><h2>Carbonation</h2></div>
+    <div class="log-card">
+      <div class="jump-chips" style="justify-content:flex-start;margin:0 0 10px">
+        <button class="jump-chip on" id="carbKeg">🛢 Keg (CO₂)</button>
+        <button class="jump-chip" id="carbBottle">🍾 Bottle (priming)</button>
+      </div>
+      <div class="ed-row">
+        <span class="ed-unit" style="flex:1">Fridge / conditioning temp</span>
+        <input class="ed-amt" id="carbTemp" type="number" step="0.5" inputmode="decimal" value="3">
+        <button class="mini-btn" id="carbUnit">°C</button>
+      </div>
+      <div class="ed-row">
+        <span class="ed-unit" style="flex:1">Target CO₂ volumes <span id="carbSug"></span></span>
+        <input class="ed-amt" id="carbVols" type="number" step="0.1" min="1" max="4" inputmode="decimal">
+      </div>
+      <div class="note" id="carbOut" style="margin-top:6px"></div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="sec-head"><span class="sec-num">6</span><h2>Brew day, step by step</h2></div>
     <div class="walk" id="walk"></div>
   </div>
 
   <div class="section">
-    <div class="sec-head"><span class="sec-num">6</span><h2>Brew log</h2></div>
+    <div class="sec-head"><span class="sec-num">7</span><h2>Brew log</h2></div>
     <div class="log-card">
       <div class="log-row">
         <input list="logLabels" id="logLabel" placeholder="reading (OG, Temp, pH…)" autocomplete="off">
@@ -393,6 +429,9 @@
         <option value="Ferment temp"></option><option value="pH"></option><option value="Final volume"></option>
         <option value="Efficiency"></option><option value="ABV"></option><option value="Date"></option>
       </datalist>
+      <div class="jump-chips" id="lblChips" style="justify-content:flex-start;margin:0 0 10px">
+        <button class="jump-chip">OG</button><button class="jump-chip">FG</button><button class="jump-chip">Mash temp</button><button class="jump-chip">Pitch temp</button><button class="jump-chip">pH</button><button class="jump-chip">Pre-boil vol</button><button class="jump-chip">Final volume</button>
+      </div>
       <div class="log-row">
         <textarea id="logNote" rows="2" placeholder="note… (type, or tap 🎤 to dictate)"></textarea>
         <div class="log-note-btns">
@@ -400,6 +439,7 @@
           <button class="mini-btn" id="logAddNote">+ Note</button>
         </div>
       </div>
+      <div class="log-hint" id="autoStats" style="margin:0 0 8px"></div>
       <div class="log-list" id="logList"></div>
       <div class="list-actions">
         <button class="mini-btn" id="logExport">⬇️ Export / copy</button>
@@ -433,6 +473,12 @@
     <div class="section">
       <div class="sec-head"><span class="sec-num">1</span><h2>Ingredients</h2></div>
       <div class="row"><div class="name">Base spirit<small id="sBaseNote"></small></div><div class="amt" id="sBase"></div></div>
+      <div class="ed-row" style="margin:0 0 10px">
+        <span class="ed-unit" style="flex:1">My base spirit strength — the recipe adjusts base &amp; water to hit the target ABV</span>
+        <input class="ed-amt" id="basePct" type="number" min="20" max="96" step="1" inputmode="numeric" placeholder="95">
+        <span class="ed-unit">% vol</span>
+      </div>
+      <button class="mini-btn" id="sfToggle" style="margin:0 0 10px">🌿 Sugar-free: OFF</button>
       <div id="sIngredients"></div>
       <div class="note" id="sNote"></div>
       <div class="list-actions">
@@ -741,11 +787,12 @@ picker.addEventListener('change', e=>{ baseBeer=BEERS[+e.target.value]; beer=clo
 /* ---- render ---- */
 function renderHeader(){
   document.getElementById('eyebrow').textContent = beer.style.split(' · ')[0];
-  document.getElementById('title').innerHTML = beer.name.replace(/^(\S+)/, '$1').replace(/(\S+)$/, '<span>$1</span>');
-  // keep title simple if single word styling looks odd
   document.getElementById('title').textContent = beer.name;
   document.getElementById('styleLine').textContent = beer.style;
   document.getElementById('desc').textContent = beer.desc;
+  const bn=document.getElementById('brewName');
+  if(bn){ bn.hidden=!beer.customName; bn.textContent=beer.customName?`“${beer.customName}”`:''; }
+  if(typeof updateAutoStats==='function') updateAutoStats();
 }
 function renderStats(){
   document.getElementById('stats').innerHTML =
@@ -1077,13 +1124,19 @@ function renderTimer(){
     else if(minsLeft<at){ line.classList.add('done'); }
   });
   clock.classList.toggle('alert',alert);
-  if(alert){ const now=[...document.querySelectorAll('.hop-line')].find(l=>l.classList.contains('now')); if(now){ const nm=now.querySelector('.hop-name'); label.textContent='⟶ add: '+(nm?nm.textContent:now.textContent); } }
+  if(alert){
+    const now=[...document.querySelectorAll('.hop-line')].find(l=>l.classList.contains('now'));
+    if(now){
+      const nm=now.querySelector('.hop-name'); label.textContent='⟶ add: '+(nm?nm.textContent:now.textContent);
+      if(now.dataset.at!==lastBeepKey && typeof beep==='function'){ lastBeepKey=now.dataset.at; beep(2); }
+    }
+  }
   if(!dragging) setKnob(beer.boil - remaining/60);
 }
 function tick(){
   remaining = Math.max(0, Math.round((endAt - Date.now())/1000));
   renderTimer();
-  if(remaining<=0){ clearInterval(timer); timer=null; clock.textContent='00:00'; clock.classList.add('alert'); label.textContent='boil complete — flame out & chill'; return; }
+  if(remaining<=0){ clearInterval(timer); timer=null; clock.textContent='00:00'; clock.classList.add('alert'); label.textContent='boil complete — flame out & chill 🍻'; if(!boilDone){ boilDone=true; beep(3,660); confetti(); } return; }
   if(!clock.classList.contains('alert')) label.textContent='boiling';
 }
 // Knob is the only control: dragging it sets where you are and (re)starts the running clock from there.
@@ -1091,14 +1144,15 @@ function setFromElapsed(elapsedMin){
   elapsedMin=Math.max(0,Math.min(beer.boil, elapsedMin));
   remaining=Math.round((beer.boil-elapsedMin)*60);
   clearInterval(timer); timer=null;
-  if(remaining<=0){ endAt=0; remaining=0; clock.textContent='00:00'; clock.classList.add('alert'); label.textContent='boil complete — flame out & chill'; renderTimer(); return; }
+  if(remaining<=0){ endAt=0; remaining=0; clock.textContent='00:00'; clock.classList.add('alert'); label.textContent='boil complete — flame out & chill 🍻'; renderTimer(); boilDone=true; return; }
+  boilDone=false; lastBeepKey=null;
   endAt=Date.now()+remaining*1000;
   clock.classList.remove('alert');
   timer=setInterval(tick,500);
   tick();
 }
 function resetTimer(){
-  clearInterval(timer); timer=null; endAt=0; remaining=beer.boil*60; dragging=false;
+  clearInterval(timer); timer=null; endAt=0; remaining=beer.boil*60; dragging=false; boilDone=false; lastBeepKey=null;
   clock.classList.remove('alert'); label.textContent='drag the dial to start the boil';
 }
 boilKnob.addEventListener('pointerdown',()=>{dragging=true;});
@@ -1109,6 +1163,107 @@ document.getElementById('hopSched').addEventListener('click',e=>{ const line=e.t
 // resync display when returning to the app
 document.addEventListener('visibilitychange',()=>{ if(!document.hidden){ if(timer!==null) tick(); if(chillT.iv) chillTick(); } });
 window.addEventListener('focus',()=>{ if(timer!==null) tick(); if(chillT.iv) chillTick(); });
+
+/* ---- fun: surprise style, brew-name generator, beeps + confetti ---- */
+document.getElementById('surprise').addEventListener('click',()=>{
+  let i; do{ i=Math.floor(Math.random()*BEERS.length); }while(BEERS[i]===baseBeer && BEERS.length>1);
+  baseBeer=BEERS[i]; beer=cloneBeer(baseBeer); picker.value=i; resetTimer(); renderAll();
+});
+const NAME_A=['Foggy','Golden','Grumpy','Midnight','Velvet','Rusty','Wild','Lazy','Thundering','Silky','Dancing','Cheeky','Copper','Barefoot','Howling','Sleepy'];
+const NAME_B=['Badger','Kettle','Anvil','Monk','Fox','Sparrow','Piston','Lantern','Comet','Tram','Otter','Barrel','Rooster','Walrus','Bicycle','Nonna'];
+document.getElementById('nameBrew').addEventListener('click',()=>{
+  const tail={lager:'Lager',ale:'Ale',wheat:'Weizen',belgian:'Ale'}[beer.type]||'Brew';
+  beer.customName=`${NAME_A[Math.floor(Math.random()*NAME_A.length)]} ${NAME_B[Math.floor(Math.random()*NAME_B.length)]} ${tail}`;
+  const bn=document.getElementById('brewName'); bn.hidden=false; bn.textContent=`“${beer.customName}”`;
+});
+let audioCtx=null, lastBeepKey=null, boilDone=false;
+function beep(n=1,freq=880){
+  try{
+    audioCtx=audioCtx||new (window.AudioContext||window.webkitAudioContext)();
+    let t=audioCtx.currentTime;
+    for(let i=0;i<n;i++){
+      const o=audioCtx.createOscillator(),g=audioCtx.createGain();
+      o.connect(g); g.connect(audioCtx.destination); o.frequency.value=freq;
+      g.gain.setValueAtTime(0.0001,t); g.gain.exponentialRampToValueAtTime(0.22,t+0.02); g.gain.exponentialRampToValueAtTime(0.0001,t+0.26);
+      o.start(t); o.stop(t+0.3); t+=0.38;
+    }
+  }catch(_){}
+  try{ navigator.vibrate && navigator.vibrate(n>1?[150,90,150]:150); }catch(_){}
+}
+function confetti(){
+  const c=document.createElement('div'); c.className='confetti';
+  const EM=['🍺','🍻','✨','🎉','🌾','🍀'];
+  for(let i=0;i<26;i++){
+    const s=document.createElement('span');
+    s.textContent=EM[Math.floor(Math.random()*EM.length)];
+    s.style.left=(Math.random()*100)+'%';
+    s.style.animationDuration=(1.7+Math.random()*1.5)+'s';
+    s.style.animationDelay=(Math.random()*0.5)+'s';
+    c.appendChild(s);
+  }
+  document.body.appendChild(c); setTimeout(()=>c.remove(),3200);
+}
+
+/* ---- carbonation calculator: keg PSI + bottle priming ---- */
+let carb={mode:'keg', temp:3, unit:'C', vols:null};
+function suggestVols(){
+  const n=beer.name.toLowerCase();
+  if(/hefe|weizen|wit/.test(n)) return 3.0;
+  if(/tripel|belgian|saison/.test(n)||beer.type==='belgian') return 2.8;
+  if(/guinness|dry stout/.test(n)) return 1.8;
+  if(/stout|porter|esb|brown|mild|bitter/.test(n)) return 2.1;
+  if(beer.type==='lager') return 2.5;
+  return 2.4;
+}
+function carbTempF(){ return carb.unit==='C' ? carb.temp*9/5+32 : carb.temp; }
+function kegPSI(F,V){ // standard carbonation-chart fit (psig)
+  return -16.6999 - 0.0101059*F + 0.00116512*F*F + 0.173354*F*V + 4.24267*V - 0.0684226*V*V;
+}
+function residualVols(F){ return 3.0378 - 0.050062*F + 0.00026555*F*F; } // CO2 left after fermenting at F
+function renderCarb(){
+  const out=document.getElementById('carbOut'); if(!out) return;
+  const V = carb.vols!=null ? carb.vols : suggestVols();
+  document.getElementById('carbVols').value=V;
+  document.getElementById('carbSug').textContent=`· suggested for this style: ${suggestVols().toFixed(1)}`;
+  document.getElementById('carbUnit').textContent=carb.unit==='C'?'°C':'°F';
+  document.getElementById('carbKeg').classList.toggle('on',carb.mode==='keg');
+  document.getElementById('carbBottle').classList.toggle('on',carb.mode==='bottle');
+  const F=carbTempF(), C=(F-32)*5/9;
+  let html='';
+  if(carb.mode==='keg'){
+    const p=Math.max(0,kegPSI(F,V));
+    const burst=Math.min(30,Math.round(p+13));
+    html=`<b>Set &amp; forget:</b> <b style="color:var(--gold-bright)">${p.toFixed(1)} psi</b> at ${carb.temp}${carb.unit==='C'?' °C':' °F'} for 7–10 days — leave it there for serving too. `+
+         `<b>In a hurry?</b> Burst at ~${burst} psi for <b>24–36 h max</b>, then drop to ${p.toFixed(1)} psi. Longer overshoots (harsh, foamy) — if that happens, burp the keg to zero and vent a few times a day until the pour settles.`;
+    if(C<=0.5) html+=` ⚠ You're at/near freezing — a ~5% beer slushes around −2 °C, and thermostat swings can freeze the lines. 2–3 °C is safer.`;
+  } else {
+    const ferm=yeastProfile(beer.yeast);
+    const fermF=(ferm.tempHi*9/5)+32;
+    const add=Math.max(0, V - residualVols(fermF));
+    const suc=(add*4.0).toFixed(1), dex=(add*4.46).toFixed(1);
+    html=`For <b>${vol} L</b> at ${V.toFixed(1)} volumes (≈${residualVols(fermF).toFixed(1)} already in the beer from fermenting at ~${ferm.tempHi} °C): `+
+         `<b style="color:var(--gold-bright)">${(suc*vol).toFixed(0)} g table sugar</b> or <b>${(dex*vol).toFixed(0)} g dextrose</b> total (${suc} / ${dex} g per litre). `+
+         `Dissolve in a little boiled water, mix gently into the bottling bucket, bottle, and condition <b>2–3 weeks warm</b>.`;
+    if(V>3.0) html+=` ⚠ Above 3.0 volumes use strong bottles (Belgian/champagne-style) — standard bottles can burst.`;
+  }
+  out.innerHTML=html;
+}
+document.getElementById('carbKeg').addEventListener('click',()=>{ carb.mode='keg'; renderCarb(); });
+document.getElementById('carbBottle').addEventListener('click',()=>{ carb.mode='bottle'; renderCarb(); });
+document.getElementById('carbUnit').addEventListener('click',()=>{
+  if(carb.unit==='C'){ carb.temp=Math.round(carbTempF()); carb.unit='F'; }
+  else { carb.temp=Math.round((carb.temp-32)*5/9); carb.unit='C'; }
+  document.getElementById('carbTemp').value=carb.temp; renderCarb();
+});
+document.getElementById('carbTemp').addEventListener('input',e=>{ const v=parseFloat(e.target.value); if(!isNaN(v)){ carb.temp=v; renderCarb(); } });
+document.getElementById('carbVols').addEventListener('input',e=>{ const v=parseFloat(e.target.value); carb.vols=isNaN(v)?null:v; renderCarb(); });
+
+/* ---- collapsible sections: tap any numbered header to fold it ---- */
+document.addEventListener('click',e=>{
+  const h=e.target.closest('.sec-head'); if(!h) return;
+  const sec=h.closest('.section'); if(!sec) return;
+  sec.classList.toggle('collapsed');
+});
 
 /* ---- chill timer (counts up; tap the clock to start / reset) ---- */
 let chillT={start:0,iv:null};
@@ -1127,6 +1282,7 @@ function setVol(v){
   const p=(v-slider.min)/(slider.max-slider.min)*100; slider.style.setProperty('--p',p+'%');
   document.querySelectorAll('.preset').forEach(b=>b.classList.toggle('on',+b.dataset.v===v));
   renderIngredients(); renderWalk(); buildHopSched(); renderTimer();
+  if(typeof renderCarb==='function') renderCarb();
 }
 slider.addEventListener('input',e=>setVol(+e.target.value));
 document.getElementById('presets').addEventListener('click',e=>{ const b=e.target.closest('.preset'); if(!b)return; slider.value=b.dataset.v; setVol(+b.dataset.v); });
@@ -1141,6 +1297,7 @@ document.getElementById('modeToggle').addEventListener('click',e=>{
 function renderAll(){
   if(typeof exitEditUI==='function') exitEditUI();
   renderHeader(); renderStats(); renderMash(); renderFerment();
+  carb.vols=null; if(typeof renderCarb==='function') renderCarb();
   resetTimer();
   setVol(vol); // also renders ingredients, walk, hop sched, timer
   setKnob(0);
@@ -1498,6 +1655,7 @@ function updateLogHint(){
 }
 function renderLog(){
   const list=document.getElementById('logList'); if(!list) return;
+  if(typeof updateAutoStats==='function') updateAutoStats();
   if(!brewLog.length){ list.innerHTML='<div class="log-empty">No entries yet — add a reading or a note.</div>'; return; }
   list.innerHTML=brewLog.map((e,i)=>{
     const body=e.type==='data' ? `<b>${lEsc(e.label||'reading')}:</b> ${lEsc(e.value||'')}` : lEsc(e.text||'');
@@ -1506,11 +1664,29 @@ function renderLog(){
   }).join('');
 }
 function addLogEntry(entry){ entry.ts=Date.now(); entry.beer=(typeof beer!=='undefined'&&beer)?beer.name:null; brewLog.unshift(entry); saveLog(); renderLog(); }
+function latestReading(keys){
+  for(const e of brewLog){ if(e.type!=='data') continue; if(e.beer && e.beer!==beer.name) continue; const lab=(e.label||'').toLowerCase(); if(keys.some(k=>lab.includes(k))){ const v=parseFloat(String(e.value).replace(',','.')); if(!isNaN(v)) return v; } }
+  return null;
+}
+function computedStats(){
+  const og=latestReading(['og','original gravity']), fg=latestReading(['fg','final gravity']);
+  if(og==null||fg==null||!(og>fg)||og<1||og>1.2||fg<0.98) return null;
+  return {abv:((og-fg)*131.25).toFixed(1)+'%', att:Math.round((og-fg)/(og-1)*100)+'%'};
+}
+function updateAutoStats(){
+  const el=document.getElementById('autoStats'); if(!el) return;
+  const s=computedStats();
+  el.textContent = s ? `📐 From your readings: ABV ≈ ${s.abv} · attenuation ≈ ${s.att}` : '';
+}
 document.getElementById('logAddData').addEventListener('click',()=>{
   const l=document.getElementById('logLabel'), v=document.getElementById('logValue');
   const label=l.value.trim(), value=v.value.trim();
   if(!label && !value) return;
   addLogEntry({type:'data',label,value}); l.value=''; v.value=''; l.focus();
+});
+document.getElementById('lblChips').addEventListener('click',e=>{
+  const b=e.target.closest('.jump-chip'); if(!b) return;
+  document.getElementById('logLabel').value=b.textContent; document.getElementById('logValue').focus();
 });
 document.getElementById('logValue').addEventListener('keydown',e=>{ if(e.key==='Enter'){ e.preventDefault(); document.getElementById('logAddData').click(); } });
 document.getElementById('logAddNote').addEventListener('click',()=>{
@@ -1611,7 +1787,7 @@ function buildSheetHTML(){
 
   const page1=`
   <div class="sheet-page">
-    <h1>${beer.name}</h1>
+    <h1>${beer.name}${beer.customName?` — “${lEsc(beer.customName)}”`:''}</h1>
     <div class="sub">${beer.style}</div>
     <div class="meta">
       <div><b>Brew #</b>______</div><div><b>Brew date</b>____________</div>
@@ -1710,7 +1886,7 @@ function sheetActuals(){
   const finals=`<table><tr><th>Final numbers</th><th>Target</th><th>Actual</th></tr>
     <tr><td>Original gravity</td><td>${beer.og}</td>${aCell(latestActual(['og','original gravity']))}</tr>
     <tr><td>Final gravity</td><td>${beer.fg}</td>${aCell(latestActual(['fg','final gravity']))}</tr>
-    <tr><td>ABV</td><td>${beer.abv}</td>${aCell(latestActual(['abv']))}</tr>
+    <tr><td>ABV</td><td>${beer.abv}</td>${aCell(latestActual(['abv']) || (computedStats()?computedStats().abv:''))}</tr>
     <tr><td>Batch volume (L)</td><td>${vol}</td>${aCell(latestActual(['final volume','batch volume','post-boil']))}</tr>
     <tr><td>Mash efficiency (%)</td><td>—</td>${aCell(latestActual(['efficiency']))}</tr>
     <tr><td>Attenuation (%)</td><td>—</td>${aCell(latestActual(['attenuation']))}</tr>
@@ -1744,13 +1920,13 @@ document.getElementById('sheetPrint').addEventListener('click',()=>{ window.prin
 const SPIRITS=[
  {id:'limoncello',name:'Limoncello',style:'Lemon liqueur · Italy',desc:'Bright lemon liqueur from peel macerated in neutral spirit, then sweetened. Serve ice-cold.',
   base:'Neutral grain spirit 95% — 350 ml (or 600 ml vodka 40%)', baseMl:350, abv:'~30%', macerate:'7–14 days', sweet:'High', yield:'~1 L',
-  ing:[{n:'Organic lemons (zest only)',note:'no white pith — it turns it bitter',amt:6,unit:'pcs'},{n:'Sugar',note:'for the syrup',amt:300,unit:'g'},{n:'Water',note:'for the syrup',amt:350,unit:'ml'}],
+  ing:[{n:'Dried lemon peel',note:'\u2248 zest of 6 fresh lemons; food-grade, no white pith \u2014 pith turns it bitter',amt:30,unit:'g'},{n:'Sugar',note:'for the syrup',amt:300,unit:'g'},{n:'Water',note:'for the syrup',amt:350,unit:'ml'}],
   method:[{h:'Peel & macerate',meta:'7–14 days, dark, room temp',p:'Zest the lemons thinly, drop the peel into the spirit, seal and steep until the spirit is deep yellow and the peel is pale.'},{h:'Make syrup',meta:'cool fully',p:'Dissolve the sugar in the water, simmer briefly, then cool to room temperature.'},{h:'Combine & rest',meta:'1–2 weeks',p:'Strain out the peel, blend the infused spirit with the syrup, bottle, and rest before drinking.'}],
   tips:'Use only the colored zest. Freeze before serving. Higher-proof base extracts more oils, then the syrup dilutes to ~30%.'},
 
  {id:'arancello',name:'Arancello (orange)',style:'Orange liqueur · Italy',desc:'The orange cousin of limoncello — sweeter and rounder.',
   base:'Neutral grain spirit 95% — 350 ml (or 600 ml vodka 40%)', baseMl:350, abv:'~30%', macerate:'10–20 days', sweet:'High', yield:'~1 L',
-  ing:[{n:'Organic oranges (zest only)',note:'no pith',amt:4,unit:'pcs'},{n:'Sugar',note:'syrup',amt:280,unit:'g'},{n:'Water',note:'syrup',amt:350,unit:'ml'}],
+  ing:[{n:'Dried sweet orange peel',note:'\u2248 zest of 4 fresh oranges; no pith',amt:35,unit:'g'},{n:'Sugar',note:'syrup',amt:280,unit:'g'},{n:'Water',note:'syrup',amt:350,unit:'ml'}],
   method:[{h:'Peel & macerate',meta:'10–20 days',p:'Zest the oranges, macerate the peel in the spirit until vivid.'},{h:'Syrup',meta:'cool fully',p:'Dissolve sugar in water, cool.'},{h:'Combine & rest',meta:'2 weeks',p:'Strain, blend with syrup, bottle and rest.'}],
   tips:'A cinnamon stick or a few cloves in the macerate adds warmth.'},
 
@@ -1822,6 +1998,34 @@ function fmtAmtSpirit(amt,unit){
   if(unit==='ml') return amt>=1000?(amt/1000).toFixed(2)+' L':Math.round(amt)+' ml';
   return amt+' '+unit;
 }
+let sugarFree=false, basePct=null;
+function refPct(){ const m=spirit.base.match(/(\d+(?:\.\d+)?)\s*%/); return m?+m[1]:95; }
+function usedPct(){ const r=refPct(); if(basePct==null||isNaN(basePct)) return r; return Math.min(96,Math.max(20,basePct)); }
+function baseMlAdj(){ return spirit.baseMl * refPct()/usedPct(); } // same pure alcohol → same target ABV
+function spiritIngList(){
+  const deltaWater = baseMlAdj() - spirit.baseMl; // extra base volume must come out of the water
+  let list = spirit.ing.map(i=>({...i}));
+  if(Math.abs(deltaWater)>0.5){
+    const wi = list.reduce((best,i,idx)=> (/water/i.test(i.n)&&i.unit==='ml'&&(best<0||i.amt>list[best].amt))?idx:best, -1);
+    if(wi>=0){
+      const na = list[wi].amt - deltaWater;
+      list[wi].amt = Math.max(0, +na.toFixed(0));
+      list[wi].note = (list[wi].note?list[wi].note+' · ':'') + `adjusted for your ${usedPct()}% base`;
+      list[wi].short = na < 0; // couldn't remove enough water
+    }
+  }
+  if(!sugarFree) return list;
+  let swapped=false;
+  const out=list.map(i=>{
+    if(/^sugar$/i.test(i.n.trim())){
+      swapped=true;
+      return {n:'Pure stevia (powder or drops)',note:`replaces ${i.amt} g sugar — start low, taste, add; stevia+monk-fruit blends taste cleaner`,amt:Math.max(0.5,+(i.amt*0.004).toFixed(1)),unit:'g'};
+    }
+    return i;
+  });
+  if(swapped) out.push({n:'Vegetable glycerin (food grade)',note:'restores the syrupy body sugar gave — optional but recommended',amt:15,unit:'ml'});
+  return out;
+}
 function renderSpirit(){
   const k=svol;
   document.getElementById('eyebrow').textContent=spirit.style.split(' · ')[0];
@@ -1829,18 +2033,24 @@ function renderSpirit(){
   document.getElementById('styleLine').textContent=spirit.style;
   document.getElementById('sDesc').textContent=spirit.desc;
   document.getElementById('sStats').innerHTML=
-    [['ABV',spirit.abv],['MACERATE',spirit.macerate],['SWEET',spirit.sweet],['YIELD',spirit.yield]]
+    [['ABV',spirit.abv],['MACERATE',spirit.macerate],['SWEET',sugarFree?'🌿 sugar-free':spirit.sweet],['YIELD',spirit.yield]]
     .map(([l,n])=>`<div class="stat"><div class="n" style="font-size:14px">${n}</div><div class="l">${l}</div></div>`).join('');
-  // base spirit scales with finished volume
-  const baseMl=Math.round(spirit.baseMl*k);
+  // base spirit scales with finished volume, adjusted for the strength of YOUR spirit
+  const baseMl=Math.round(baseMlAdj()*k);
   document.getElementById('sBase').textContent = baseMl>=1000?(baseMl/1000).toFixed(2)+' L':baseMl+' ml';
-  document.getElementById('sBaseNote').textContent = spirit.base;
-  document.getElementById('sIngredients').innerHTML = spirit.ing.map(i=>
+  document.getElementById('sBaseNote').textContent = usedPct()!==refPct() ? `${spirit.base} → using YOUR ${usedPct()}% spirit` : spirit.base;
+  const ings=spiritIngList();
+  document.getElementById('sIngredients').innerHTML = ings.map(i=>
     `<div class="row"><div class="name">${i.n}${i.note?`<small>${i.note}</small>`:''}</div><div class="amt">${fmtAmtSpirit(i.amt*k,i.unit)}</div></div>`).join('');
-  document.getElementById('sNote').innerHTML=`<b>Starting point:</b> a clear distilled base (neutral grain spirit or vodka). Amounts scale to your <b>${svol} L</b> finished volume. Taste as you go — macerations vary with ingredient strength.`;
+  let noteHtml=`<b>Starting point:</b> a clear distilled base. Set your spirit's % above — the base volume and dilution water rebalance to keep the same alcohol, so the liqueur still lands at <b>${spirit.abv}</b>. Amounts scale to your <b>${svol} L</b> finished volume. Taste as you go.`;
+  if(ings.some(i=>i.short)) noteHtml+=` <b>⚠ Your base is too weak for this target:</b> even with zero dilution water it can\u2019t reach ${spirit.abv} at this yield — expect a lower ABV or use a stronger spirit.`;
+  if(sugarFree) noteHtml+=` <b>Sugar-free mode:</b> keep the recipe's water (it still dilutes the spirit to drinking strength) — dissolve the stevia in it warm where the recipe makes syrup, and stir in the glycerin at the end. Don't freeze erythritol-based blends: they crystallize.`;
+  document.getElementById('sNote').innerHTML=noteHtml;
   document.getElementById('sMethod').innerHTML = spirit.method.map(m=>
     `<div class="ferm-step"><h3>${m.h}</h3><div class="meta">${m.meta}</div><p>${m.p}</p></div>`).join('');
   document.getElementById('sTips').innerHTML=`<b>Tips.</b> ${spirit.tips}`;
+  const sf=document.getElementById('sfToggle');
+  if(sf){ sf.textContent=`🌿 Sugar-free: ${sugarFree?'ON':'OFF'}`; sf.classList.toggle('gold',sugarFree); }
 }
 function setSVol(v){
   svol=v; document.getElementById('sVol').textContent=v;
@@ -1852,21 +2062,21 @@ function setSVol(v){
 // spirit shopping list + card reuse the modal / sheet overlay
 function spiritListText(){
   const k=svol;
-  let t=`SHOPPING LIST — ${spirit.name}\nFinished volume: ${svol} L · ${spirit.abv} ABV\n\nBASE SPIRIT\n  [ ] ${spirit.base} (scaled: ${(spirit.baseMl*k>=1000?(spirit.baseMl*k/1000).toFixed(2)+' L':Math.round(spirit.baseMl*k)+' ml')})\n\nINGREDIENTS\n`;
-  spirit.ing.forEach(i=>{ t+=`  [ ] ${i.n} — ${fmtAmtSpirit(i.amt*k,i.unit)}\n`; });
+  let t=`SHOPPING LIST — ${spirit.name}\nFinished volume: ${svol} L · ${spirit.abv} ABV\n\nBASE SPIRIT\n  [ ] your ${usedPct()}% spirit (scaled: ${(baseMlAdj()*k>=1000?(baseMlAdj()*k/1000).toFixed(2)+' L':Math.round(baseMlAdj()*k)+' ml')})\n\nINGREDIENTS\n`;
+  spiritIngList().forEach(i=>{ t+=`  [ ] ${i.n} — ${fmtAmtSpirit(i.amt*k,i.unit)}\n`; });
   t+=`\nMETHOD\n`; spirit.method.forEach((m,idx)=>{ t+=`  ${idx+1}. ${m.h} (${m.meta})\n`; });
   t+=`\n— Brew Card. Homemade infusions; taste and adjust.\n`;
   return t;
 }
 function buildSpiritSheetHTML(){
   const k=svol;
-  const ingRows=spirit.ing.map(i=>`<tr><td>${i.n}${i.note?` <span class="sub">(${i.note})</span>`:''}</td><td>${fmtAmtSpirit(i.amt*k,i.unit)}</td></tr>`).join('');
+  const ingRows=spiritIngList().map(i=>`<tr><td>${i.n}${i.note?` <span class="sub">(${i.note})</span>`:''}</td><td>${fmtAmtSpirit(i.amt*k,i.unit)}</td></tr>`).join('');
   const methodRows=spirit.method.map((m,i)=>`<tr><td>${i+1}. ${m.h}</td><td>${m.meta}</td><td>${m.p}</td></tr>`).join('');
   return `<div class="sheet-page">
     <h1>${spirit.name}</h1><div class="sub">${spirit.style}</div>
     <div class="meta"><div><b>ABV</b>${spirit.abv}</div><div><b>Macerate</b>${spirit.macerate}</div><div><b>Sweetness</b>${spirit.sweet}</div><div><b>Yield</b>${spirit.yield}</div><div><b>Finished vol</b>${svol} L</div><div><b>Made on</b>__________</div></div>
     <h3>Base spirit</h3>
-    <div class="notebox" style="min-height:30px;padding:6px 8px;font-size:12px">${spirit.base} — scaled: ${(spirit.baseMl*k>=1000?(spirit.baseMl*k/1000).toFixed(2)+' L':Math.round(spirit.baseMl*k)+' ml')}</div>
+    <div class="notebox" style="min-height:30px;padding:6px 8px;font-size:12px">Your ${usedPct()}% base spirit — scaled: ${(baseMlAdj()*k>=1000?(baseMlAdj()*k/1000).toFixed(2)+' L':Math.round(baseMlAdj()*k)+' ml')}</div>
     <h3>Ingredients</h3>
     <table><tr><th>Ingredient</th><th>Amount</th></tr>${ingRows}</table>
     <h3>Method</h3>
@@ -1884,6 +2094,8 @@ document.getElementById('sPresets').addEventListener('click',e=>{ const b=e.targ
 const spiritPicker=document.getElementById('spiritPicker');
 SPIRITS.forEach((s,i)=>{ const o=document.createElement('option'); o.value=i; o.textContent=s.name; spiritPicker.appendChild(o); });
 spiritPicker.addEventListener('change',e=>{ spirit=SPIRITS[+e.target.value]; renderSpirit(); });
+document.getElementById('sfToggle').addEventListener('click',()=>{ sugarFree=!sugarFree; renderSpirit(); });
+document.getElementById('basePct').addEventListener('input',e=>{ const v=parseFloat(e.target.value); basePct=isNaN(v)?null:v; renderSpirit(); });
 
 // category toggle
 document.getElementById('catToggle').addEventListener('click',e=>{
