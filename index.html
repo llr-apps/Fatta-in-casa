@@ -198,6 +198,7 @@
   .fs-k{color:var(--dim);font-family:'Oswald',sans-serif;letter-spacing:.04em;text-transform:uppercase;font-size:11.5px;flex:none}
   .fs-pct{color:var(--gold-bright);font-weight:700;font-family:'Oswald',sans-serif}
   .fs-note{font-size:12px;color:var(--dim);margin-top:9px;line-height:1.45}
+  .fit-note{background:rgba(232,163,23,.09);border:1px solid var(--line);border-left:3px solid var(--gold);border-radius:10px;padding:11px 13px;font-size:12.5px;color:var(--foam);line-height:1.5;margin-bottom:10px}
   .picker-row{display:flex;gap:8px;align-items:stretch}
   .sec-head{cursor:pointer;-webkit-user-select:none;user-select:none;position:relative}
   .sec-head::after{content:'▾';position:absolute;right:2px;top:50%;transform:translateY(-50%);color:var(--dim);font-size:14px;transition:transform .15s}
@@ -785,7 +786,6 @@ function waterVols(){
 const picker = document.getElementById('picker');
 BEERS.forEach((b,i)=>{ const o=document.createElement('option'); o.value=i; o.textContent=b.name; picker.appendChild(o); });
 picker.addEventListener('change', e=>{ baseBeer=BEERS[+e.target.value]; beer=cloneBeer(baseBeer); resetTimer(); renderAll(); });
-
 /* ---- render ---- */
 function renderHeader(){
   document.getElementById('eyebrow').textContent = beer.style.split(' · ')[0];
@@ -803,6 +803,7 @@ function renderStats(){
 }
 function renderIngredients(){
   const k = vol/BASE;
+  const banner = beer.fitted ? `<div class="fit-note">🧰 Adapted to your cupboard — swapped or dropped what you didn't have (look for “your sub” tags). Tap <b>Edit / use what I have</b> to fine-tune, or reload the style from the picker for the original.</div>` : '';
   if(mode==='extract'){
     let rows = `<div class="row"><div class="name">${lmeType()}<small>replaces the mashed barley — stir in off the heat</small></div><div class="amt">${fmtKg(lmeKg()*k)}</div></div>`;
     maizeGrains().forEach(g=>{
@@ -815,16 +816,17 @@ function renderIngredients(){
       const amt = g.kg<0.1 ? fmtG(g.kg*1000*k) : fmtKg(g.kg*k);
       rows += `<div class="row"><div class="name">${g.n}<small>${g.note||''}</small></div><div class="amt">${amt}</div></div>`;
     });
-    document.getElementById('grains').innerHTML = rows;
+    document.getElementById('grains').innerHTML = banner + rows;
   } else {
-    document.getElementById('grains').innerHTML = beer.grains.map(g=>{
+    document.getElementById('grains').innerHTML = banner + beer.grains.map(g=>{
       const amt = g.mash===false && g.kg<0.1 ? fmtG(g.kg*1000*k) : fmtKg(g.kg*k);
       return `<div class="row"><div class="name">${g.n}${g.note?`<small>${g.note}</small>`:''}</div><div class="amt">${amt}</div></div>`;
     }).join('');
   }
   document.getElementById('hops').innerHTML = beer.hops.map(h=>{
     const when = typeof h.t==='number' ? `added at ${h.t} min` : h.t;
-    return `<div class="row"><div class="name">${h.n} <span class="tag">${h.tag}</span><small>${when}</small></div><div class="amt">${fmtG(h.g*k)}</div></div>`;
+    const subtag = h.sub ? ' <span class="tag" style="border-color:var(--copper-text);color:var(--copper-text)">your sub</span>' : '';
+    return `<div class="row"><div class="name">${h.n} <span class="tag">${h.tag}</span>${subtag}<small>${when}</small></div><div class="amt">${fmtG(h.g*k)}</div></div>`;
   }).join('');
   document.getElementById('yeast').textContent = packsFor();
   document.getElementById('yeastNote').textContent = beer.yeast + (beer.ynote?` · ${beer.ynote}`:'');
@@ -1453,8 +1455,45 @@ function suggest(){
     return `<button class="result ${r.pct>=90?'full':''}" data-idx="${r.i}"><span class="pct">${r.pct}%</span><span class="rtext"><span class="rname">${r.b.name}</span><span class="rmiss">${miss}</span></span></button>`;
   }).join('');
 }
+// map a cupboard token back to a usable ingredient name for substitutions
+const TOK2NAME={pilsner:'Pilsner malt',pale:'Pale / Maris Otter',munich:'Munich malt',vienna:'Vienna malt',wheat:'Wheat malt',maize:'Flaked maize',oats:'Flaked oats',flakedwheat:'Flaked wheat',flakedbarley:'Flaked barley',crystal:'Crystal / caramel malt',choc:'Chocolate malt',roast:'Roasted / black malt',darkmalt:'Carafa (dark)',sugar:'Sugar'};
+const HOPTOK2NAME={saaz:'Saaz',hallertau:'Hallertau',tettnang:'Tettnang',styrian:'Styrian Goldings',spalt:'Spalt',cascade:'Cascade',centennial:'Centennial',columbus:'Columbus',citra:'Citra',mosaic:'Mosaic',simcoe:'Simcoe',amarillo:'Amarillo',chinook:'Chinook',ekg:'East Kent Goldings',fuggle:'Fuggle',challenger:'Challenger',nelson:'Nelson Sauvin',galaxy:'Galaxy',motueka:'Motueka',riwaka:'Riwaka'};
+const YCAT2NAME={lager_yeast:'Lager yeast (W-34/70)',ale_yeast:'Clean ale yeast (US-05)',english_yeast:'English ale yeast (S-04)',hefe_yeast:'Hefeweizen yeast (WB-06)',belgian_yeast:'Belgian yeast (WLP530)',saison_yeast:'Saison yeast (Belle)',kveik:'Kveik',hazy_yeast:'Hazy ale yeast (London III)'};
+const YTOK2NAME={w3470:'Lager W-34/70',wlp830:'Lager WLP830',us05:'US-05',wlp001:'WLP001',coopers:'Coopers ale',k97:'German ale K-97',s04:'English S-04',wlp002:'WLP002',wlp004:'Irish WLP004',wb06:'Hefeweizen WB-06',wy3068:'Wyeast 3068',wlp400:'Belgian Wit WLP400',wlp530:'Belgian Abbey WLP530',wy3787:'Wyeast 3787',belle:'Saison (Belle)',kveik:'Kveik',london3:'London III / Verdant'};
+// rewrite a recipe to use only what the user ticked, swapping/dropping the rest
+function fitToCupboard(b){
+  if(have.size===0) return b;
+  const anyYeast=[...have].some(t=>YEASTCAT[t]);
+  let changed=false;
+  // fermentables: base/adjunct always kept (needed for mash OR the LME conversion); specialty/sugar kept only if you have it
+  const keptGrains = b.grains.filter(g=>{
+    const r=role(g);
+    if(r==='steep'||r==='sugar'){ const drop=!have.has(grainToken(g.n)); if(drop) changed=true; return !drop; }
+    return true; // base + adjunct stay
+  });
+  b.grains = keptGrains;
+  // hops: swap each to a specific variety you own from the same family; else cross-swap american/newworld; else keep as-is
+  b.hops = b.hops.map(h=>{
+    const fam=hopFamFromName(h.n), vars=hopVarsFromName(h.n);
+    if(vars.some(v=>have.has(v))) return h;
+    const mine=[...have].find(t=>HOPFAM[t]===fam) || (fam==='american'?[...have].find(t=>HOPFAM[t]==='newworld'):null) || (fam==='newworld'?[...have].find(t=>HOPFAM[t]==='american'):null);
+    if(mine){ changed=true; return {...h, n:HOPTOK2NAME[mine], sub:true}; }
+    return h;
+  });
+  // yeast: if you ticked any, use the closest one you actually have (by name)
+  if(anyYeast){
+    const want=yeastToken(b);
+    let pick=[...have].find(t=>YEASTCAT[t]===want);
+    if(!pick){ let best=0; [...have].filter(t=>YEASTCAT[t]).forEach(t=>{ const c=(YSUBS[want]&&YSUBS[want][YEASTCAT[t]])||0; if(c>best){best=c;pick=t;} }); if(!pick) pick=[...have].find(t=>YEASTCAT[t]); }
+    if(pick && YTOK2NAME[pick]!==undefined){ if(!new RegExp(YTOK2NAME[pick],'i').test(b.yeast)){ b.yeast=YTOK2NAME[pick]; changed=true; } }
+  }
+  b.fitted=changed;
+  return b;
+}
 function loadBeer(idx){
-  baseBeer=BEERS[idx]; beer=cloneBeer(baseBeer); picker.value=idx;
+  baseBeer=BEERS[idx];
+  beer=fitToCupboard(cloneBeer(baseBeer));
+  picker.value=idx;
   // if they have extract but no matching base grain, flip to extract mode
   if(have.has('extract') && !baseToks(beer).some(t=>have.has(t))){
     mode='extract'; document.querySelectorAll('#modeToggle button').forEach(x=>x.classList.toggle('on',x.dataset.mode==='extract'));
