@@ -199,6 +199,18 @@
   .fs-pct{color:var(--gold-bright);font-weight:700;font-family:'Oswald',sans-serif}
   .fs-note{font-size:12px;color:var(--dim);margin-top:9px;line-height:1.45}
   .fit-note{background:rgba(232,163,23,.09);border:1px solid var(--line);border-left:3px solid var(--gold);border-radius:10px;padding:11px 13px;font-size:12.5px;color:var(--foam);line-height:1.5;margin-bottom:10px}
+  /* pantry */
+  .pantry-grp{margin-bottom:14px}
+  .pantry-grp-head{font-family:'Oswald',sans-serif;font-size:11.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--gold-bright);margin:0 0 7px}
+  .pantry-row{display:flex;align-items:center;gap:8px;margin-bottom:6px}
+  .pantry-name{flex:1;font-size:13px;color:var(--foam)}
+  .pantry-name small{display:block;font-size:11px;color:var(--dim)}
+  .pantry-qty{width:72px;background:var(--bg);border:1px solid var(--line);color:var(--foam);border-radius:7px;padding:7px 8px;font-size:13px;font-family:inherit;text-align:right}
+  .pantry-qty:focus{border-color:var(--gold);outline:none}
+  .pantry-unit{font-size:11px;color:var(--dim);min-width:20px}
+  .pantry-low{border-color:var(--copper) !important}
+  .pantry-empty{opacity:.45}
+  .pantry-warn{color:var(--copper-text);font-size:12px;margin-top:4px}
   .picker-row{display:flex;gap:8px;align-items:stretch}
   .sec-head{cursor:pointer;-webkit-user-select:none;user-select:none;position:relative}
   .sec-head::after{content:'▾';position:absolute;right:2px;top:50%;transform:translateY(-50%);color:var(--dim);font-size:14px;transition:transform .15s}
@@ -290,6 +302,7 @@
 
 <header>
   <div class="eyebrow" id="eyebrow">Homebrew · 20 styles</div>
+  <div style="font-size:10px;color:var(--dim);letter-spacing:.06em;text-align:right;margin-top:-4px" id="appVer"></div>
   <h1 id="title">Brew<span>Card</span></h1>
   <div class="style-line" id="styleLine">Pick a style — the whole recipe rebuilds</div>
 </header>
@@ -419,8 +432,7 @@
   </div>
 
   <div class="section">
-    <div class="sec-head"><span class="sec-num">7</span><h2>Brew log</h2></div>
-    <div class="log-card">
+    <div class="sec-head"><span class="sec-num">7</span><h2>Brew log</h2></div>    <div class="log-card">
       <div class="log-row">
         <input list="logLabels" id="logLabel" placeholder="reading (OG, Temp, pH…)" autocomplete="off">
         <input id="logValue" placeholder="value (e.g. 1.048)" autocomplete="off">
@@ -449,6 +461,20 @@
         <button class="mini-btn" id="logClear">🗑 Clear</button>
       </div>
       <div class="log-hint" id="logPersistHint"></div>
+    </div>
+  </div>
+
+  <div class="section" id="pantrySection">
+    <div class="sec-head"><span class="sec-num">8</span><h2>📦 Pantry (ingredient stock)</h2></div>
+    <div class="log-card">
+      <div class="log-hint" style="margin:0 0 12px">Track what's in your freezer/cupboard. Quantities auto-tick the cupboard matcher and get deducted after a brew. Saved on this device.</div>
+      <div id="pantryList"></div>
+      <div class="list-actions" style="margin-top:10px">
+        <button class="mini-btn gold" id="pantryUse">🍺 Deduct this recipe from stock</button>
+        <button class="mini-btn" id="pantryExport">⬇️ Export</button>
+        <button class="mini-btn" id="pantryClear">🗑 Reset all</button>
+      </div>
+      <div class="log-hint" id="pantryResult" style="margin-top:8px"></div>
     </div>
   </div>
   </div><!-- /beerView -->
@@ -730,7 +756,7 @@ const BEERS=[
 
 /* ---- state ---- */
 function cloneBeer(b){ return JSON.parse(JSON.stringify(b)); }
-let baseBeer = BEERS[0];
+const APP_VERSION = '1.7.0';
 let beer = cloneBeer(BEERS[0]), vol = 20, mode = 'grain';
 const BASE = 20;
 const LME_FACTOR = 0.75; // 1 kg mashed base grain ≈ 0.75 kg liquid malt extract
@@ -1267,6 +1293,112 @@ document.getElementById('carbUnit').addEventListener('click',()=>{
 });
 document.getElementById('carbTemp').addEventListener('input',e=>{ const v=parseFloat(e.target.value); if(!isNaN(v)){ carb.temp=v; renderCarb(); } });
 document.getElementById('carbVols').addEventListener('input',e=>{ const v=parseFloat(e.target.value); carb.vols=isNaN(v)?null:v; renderCarb(); });
+
+/* ---- Pantry: ingredient stock tracking ----
+   Keyed by the same tokens as the cupboard matcher.
+   Units: hops → g, malts → kg, yeast → packs, extract → kg.
+   Persists in localStorage. Auto-syncs cupboard chips.          */
+const PANTRY_UNITS={
+  // fermentables → kg
+  pilsner:'kg',pale:'kg',munich:'kg',vienna:'kg',wheat:'kg',maize:'kg',oats:'kg',flakedwheat:'kg',flakedbarley:'kg',crystal:'kg',choc:'kg',roast:'kg',darkmalt:'kg',sugar:'kg',extract:'kg',
+  // hops → g
+  saaz:'g',hallertau:'g',tettnang:'g',styrian:'g',spalt:'g',cascade:'g',centennial:'g',columbus:'g',citra:'g',mosaic:'g',simcoe:'g',amarillo:'g',chinook:'g',ekg:'g',fuggle:'g',challenger:'g',nelson:'g',galaxy:'g',motueka:'g',riwaka:'g',
+  // yeast → packs
+  w3470:'packs',wlp830:'packs',us05:'packs',wlp001:'packs',coopers:'packs',k97:'packs',s04:'packs',wlp002:'packs',wlp004:'packs',wb06:'packs',wy3068:'packs',wlp400:'packs',wlp530:'packs',wy3787:'packs',belle:'packs',kveik:'packs',london3:'packs'
+};
+const PANTRY_LOW={ g:10, kg:0.25, packs:1 };
+let pantry={};
+function pantryLoad(){ try{ const r=lsGet('brewcardPantry'); if(r) pantry=JSON.parse(r); }catch(_){ pantry={}; } }
+function pantrySave(){ try{ lsSet('brewcardPantry',JSON.stringify(pantry)); }catch(_){} }
+pantryLoad();
+
+function pantryQty(tok){ return typeof pantry[tok]==='number' ? pantry[tok] : 0; }
+
+// auto-sync: if a token has stock > 0, tick it; if it hits 0, untick
+function pantrySync(){
+  Object.keys(PANTRY_UNITS).forEach(tok=>{
+    const qty=pantryQty(tok);
+    const chip=document.querySelector(`.chip[data-tok="${tok}"]`);
+    if(qty>0){ have.add(tok); if(chip&&!chip.classList.contains('on')) chip.classList.add('on'); }
+    else if(qty===0){ /* don't force-remove what user manually ticked */ }
+  });
+  suggest();
+}
+
+function renderPantry(){
+  const list=document.getElementById('pantryList'); if(!list) return;
+  // Build grouped UI from INGREDIENTS array (reuses same groups)
+  list.innerHTML = INGREDIENTS.map(grp=>{
+    const rows=grp.items.map(([tok,label])=>{
+      const qty=pantryQty(tok), unit=PANTRY_UNITS[tok]||'';
+      const low=qty>0&&qty<=PANTRY_LOW[unit];
+      const cls=qty===0?'pantry-row pantry-empty':'pantry-row';
+      return `<div class="${cls}"><div class="pantry-name">${label}<small>${unit}</small></div><input class="pantry-qty${low?' pantry-low':''}" data-tok="${tok}" type="number" min="0" step="${unit==='g'?1:unit==='packs'?1:0.1}" inputmode="decimal" value="${qty>0?qty:''}"></div>`;
+    }).join('');
+    return `<div class="pantry-grp"><div class="pantry-grp-head">${grp.g}</div>${rows}</div>`;
+  }).join('');
+}
+
+// Delegate input handling
+document.getElementById('pantryList').addEventListener('input',e=>{
+  const inp=e.target; if(!inp.dataset.tok) return;
+  const v=parseFloat(inp.value); const tok=inp.dataset.tok;
+  pantry[tok]=isNaN(v)||v<0?0:v;
+  pantrySave(); pantrySync();
+  const unit=PANTRY_UNITS[tok]||'';
+  const low=pantry[tok]>0&&pantry[tok]<=PANTRY_LOW[unit];
+  inp.classList.toggle('pantry-low',low); inp.closest('.pantry-row').classList.toggle('pantry-empty',pantry[tok]===0);
+});
+
+// Deduct the current recipe's ingredients from stock
+document.getElementById('pantryUse').addEventListener('click',()=>{
+  const k=vol/BASE; const warns=[]; const used=[];
+  // grains
+  beer.grains.forEach(g=>{
+    const tok=grainToken(g.n), need=+(g.kg*k).toFixed(3);
+    if(!pantry[tok]){ warns.push(`${LABEL[tok]||g.n}: not in stock`); return; }
+    pantry[tok]=Math.max(0,+(pantry[tok]-need).toFixed(3));
+    used.push(`${LABEL[tok]||g.n} −${need} kg → ${pantry[tok]} kg left`);
+    if(pantry[tok]<=PANTRY_LOW['kg']) warns.push(`⚠ Low stock: ${LABEL[tok]||g.n} (${pantry[tok]} kg)`);
+  });
+  // extract (if in extract mode)
+  if(mode==='extract'){
+    const lmeKg_=+(lmeKg()*k).toFixed(3);
+    const tok='extract'; pantry[tok]=Math.max(0,+((pantry[tok]||0)-lmeKg_).toFixed(3));
+    used.push(`LME/DME −${lmeKg_} kg → ${pantry[tok]} kg left`);
+  }
+  // hops
+  beer.hops.forEach(h=>{
+    const vars=hopVarsFromName(h.n); const tok=vars[0]||null;
+    if(!tok){ warns.push(`${h.n}: can't match to stock`); return; }
+    const needG=+(h.g*k).toFixed(1);
+    if(!pantry[tok]){ warns.push(`${LABEL[tok]||h.n}: not in stock`); return; }
+    pantry[tok]=Math.max(0,+(pantry[tok]-needG).toFixed(1));
+    used.push(`${LABEL[tok]||h.n} −${needG} g → ${pantry[tok]} g left`);
+    if(pantry[tok]<=PANTRY_LOW['g']) warns.push(`⚠ Low: ${LABEL[tok]||h.n} (${pantry[tok]} g)`);
+  });
+  // yeast
+  const yeastToks=[...have].filter(t=>YEASTCAT[t]);
+  if(yeastToks.length){ const tok=yeastToks[0]; pantry[tok]=Math.max(0,(pantry[tok]||0)-packsNum());
+    used.push(`${LABEL[tok]||'Yeast'} −${packsNum()} packs → ${pantry[tok]} left`);
+    if(pantry[tok]===0) warns.push(`⚠ Out of ${LABEL[tok]||'yeast'}`);
+  }
+  pantrySave(); renderPantry(); pantrySync();
+  const res=document.getElementById('pantryResult');
+  res.innerHTML=`<b>✓ Deducted for ${beer.name} (${vol} L)</b><br>${used.join('<br>')}${warns.length?'<br><span style="color:var(--copper-text)">'+warns.join('<br>')+'</span>':''}`;
+  // log it
+  addLogEntry({type:'note',text:`Stock deducted for ${beer.name} ${vol} L`});
+});
+document.getElementById('pantryExport').addEventListener('click',()=>{
+  const lines=INGREDIENTS.flatMap(grp=>grp.items.filter(([t])=>pantryQty(t)>0).map(([t,l])=>`${l}: ${pantryQty(t)} ${PANTRY_UNITS[t]||''}`));
+  openListModal('Pantry stock','pantry.txt',lines.length?lines.join('\n'):'(empty)');
+});
+document.getElementById('pantryClear').addEventListener('click',()=>{
+  if(confirm('Reset all pantry quantities to zero?')){ pantry={}; pantrySave(); renderPantry(); pantrySync(); document.getElementById('pantryResult').textContent=''; }
+});
+// init (deferred so INGREDIENTS + lsGet are already defined)
+function pantryInit(){ pantryLoad(); renderPantry(); pantrySync(); }
+// called from end of page setup (after renderAll)
 
 /* ---- collapsible sections: tap any numbered header to fold it ---- */
 document.addEventListener('click',e=>{
@@ -2159,7 +2291,23 @@ document.getElementById('catToggle').addEventListener('click',e=>{
 
 buildChips(); suggest();
 renderAll();
+pantryInit();
+document.getElementById('appVer').textContent = 'v'+APP_VERSION;
 </script>
-<script>if('serviceWorker' in navigator){window.addEventListener('load',function(){navigator.serviceWorker.register('./sw.js').catch(function(){});});}</script>
+<script>
+if('serviceWorker' in navigator){
+  window.addEventListener('load', function(){
+    navigator.serviceWorker.register('./sw.js', {updateViaCache:'none'})
+      .then(reg => {
+        // poll for updates every 60 seconds (catches updates even without a page reload)
+        setInterval(() => reg.update(), 60000);
+      }).catch(function(){});
+    // when the new SW sends SW_UPDATED, reload to get the fresh app
+    navigator.serviceWorker.addEventListener('message', e => {
+      if(e.data && e.data.type === 'SW_UPDATED') window.location.reload();
+    });
+  });
+}
+</script>
 </body>
 </html>

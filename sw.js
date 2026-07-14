@@ -1,18 +1,35 @@
-/* Brew Card service worker — v2: network-first for the app page (auto-updates), cache-first for assets */
-const CACHE = 'brewcard-v2';
+/* Brew Card service worker — v3 (auto-update fix) */
+const CACHE = 'brewcard-v3';
 const SHELL = ['./', './index.html', './manifest.webmanifest', './icon-192.png', './icon-512.png', './icon-180.png'];
+
 self.addEventListener('install', e => {
-  e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL)).then(() => self.skipWaiting()).catch(()=>{}));
+  e.waitUntil(
+    caches.open(CACHE).then(c => c.addAll(SHELL))
+      .then(() => self.skipWaiting())   // take over immediately, don't wait
+      .catch(() => self.skipWaiting())
+  );
 });
+
 self.addEventListener('activate', e => {
-  e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k !== CACHE).map(k => caches.delete(k)))).then(() => self.clients.claim()));
+  e.waitUntil(
+    caches.keys()
+      .then(ks => Promise.all(ks.filter(k => k !== CACHE).map(k => caches.delete(k))))
+      .then(() => self.clients.claim())   // take control of all open tabs
+      .then(() => {
+        // tell every open tab to reload so they get the new version
+        self.clients.matchAll({type:'window'}).then(clients =>
+          clients.forEach(c => c.postMessage({type:'SW_UPDATED'}))
+        );
+      })
+  );
 });
+
 self.addEventListener('fetch', e => {
   const req = e.request;
-  if (req.method !== 'GET') return; // never touch POSTs (photo API)
-  const isPage = req.mode === 'navigate' || (req.destination === 'document');
+  if (req.method !== 'GET') return;
+  const isPage = req.mode === 'navigate' || req.destination === 'document';
   if (isPage) {
-    // network-first: you always get the newest app when online; cached copy offline
+    // network-first: always get the freshest page when online
     e.respondWith(
       fetch(req).then(res => {
         const copy = res.clone();
@@ -22,7 +39,7 @@ self.addEventListener('fetch', e => {
     );
     return;
   }
-  // assets: cache-first with background fill
+  // assets: cache-first
   e.respondWith(
     caches.match(req).then(hit => hit || fetch(req).then(res => {
       const copy = res.clone();
