@@ -1591,6 +1591,7 @@ function suggest(){
 const TOK2NAME={pilsner:'Pilsner malt',pale:'Pale / Maris Otter',munich:'Munich malt',vienna:'Vienna malt',wheat:'Wheat malt',maize:'Flaked maize',oats:'Flaked oats',flakedwheat:'Flaked wheat',flakedbarley:'Flaked barley',crystal:'Crystal / caramel malt',choc:'Chocolate malt',roast:'Roasted / black malt',darkmalt:'Carafa (dark)',sugar:'Sugar'};
 const HOPTOK2NAME={saaz:'Saaz',hallertau:'Hallertau',tettnang:'Tettnang',styrian:'Styrian Goldings',spalt:'Spalt',cascade:'Cascade',centennial:'Centennial',columbus:'Columbus',citra:'Citra',mosaic:'Mosaic',simcoe:'Simcoe',amarillo:'Amarillo',chinook:'Chinook',ekg:'East Kent Goldings',fuggle:'Fuggle',challenger:'Challenger',nelson:'Nelson Sauvin',galaxy:'Galaxy',motueka:'Motueka',riwaka:'Riwaka'};
 const YCAT2NAME={lager_yeast:'Lager yeast (W-34/70)',ale_yeast:'Clean ale yeast (US-05)',english_yeast:'English ale yeast (S-04)',hefe_yeast:'Hefeweizen yeast (WB-06)',belgian_yeast:'Belgian yeast (WLP530)',saison_yeast:'Saison yeast (Belle)',kveik:'Kveik',hazy_yeast:'Hazy ale yeast (London III)'};
+const YTOK2NOTE={w3470:'Clean lager strain',wlp830:'Clean lager strain',us05:'Clean American ale',wlp001:'Clean American ale',coopers:'Versatile ale strain',k97:'German ale / Kölsch strain — ferment cool for a pseudo-lager',s04:'English ale, quick & clean',wlp002:'English ale, malty',wlp004:'Irish ale, dry finish',wb06:'Hefeweizen yeast',wy3068:'Hefeweizen yeast',wlp400:'Belgian Wit yeast',wlp530:'Belgian Abbey yeast',wy3787:'Belgian Trappist yeast',belle:'Saison yeast',kveik:'Kveik — ferments fast & warm',london3:'Hazy / soft ale yeast'};
 const YTOK2NAME={w3470:'Lager W-34/70',wlp830:'Lager WLP830',us05:'US-05',wlp001:'WLP001',coopers:'Coopers ale',k97:'German ale K-97',s04:'English S-04',wlp002:'WLP002',wlp004:'Irish WLP004',wb06:'Hefeweizen WB-06',wy3068:'Wyeast 3068',wlp400:'Belgian Wit WLP400',wlp530:'Belgian Abbey WLP530',wy3787:'Wyeast 3787',belle:'Saison (Belle)',kveik:'Kveik',london3:'London III / Verdant'};
 // rewrite a recipe to use only what the user ticked, swapping/dropping the rest
 function fitToCupboard(b){
@@ -1617,7 +1618,7 @@ function fitToCupboard(b){
     const want=yeastToken(b);
     let pick=[...have].find(t=>YEASTCAT[t]===want);
     if(!pick){ let best=0; [...have].filter(t=>YEASTCAT[t]).forEach(t=>{ const c=(YSUBS[want]&&YSUBS[want][YEASTCAT[t]])||0; if(c>best){best=c;pick=t;} }); if(!pick) pick=[...have].find(t=>YEASTCAT[t]); }
-    if(pick && YTOK2NAME[pick]!==undefined){ if(!new RegExp(YTOK2NAME[pick],'i').test(b.yeast)){ b.yeast=YTOK2NAME[pick]; changed=true; } }
+    if(pick && YTOK2NAME[pick]!==undefined){ if(!new RegExp(YTOK2NAME[pick],'i').test(b.yeast)){ b.yeast=YTOK2NAME[pick]; b.ynote=YTOK2NOTE[pick]||''; changed=true; } }
   }
   b.fitted=changed;
   return b;
