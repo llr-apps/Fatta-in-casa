@@ -774,7 +774,7 @@ const BEERS=[
 
 /* ---- state ---- */
 function cloneBeer(b){ return JSON.parse(JSON.stringify(b)); }
-const APP_VERSION = '1.7.0';
+const APP_VERSION = '1.8.0';
 let beer = cloneBeer(BEERS[0]), vol = 20, mode = 'grain';
 const BASE = 20;
 const LME_FACTOR = 0.75; // 1 kg mashed base grain ≈ 0.75 kg liquid malt extract
@@ -1578,8 +1578,6 @@ function matchBeer(b){
   if(have.has('extract')||have.has('darkextract')) pts+=3;
   else if(baseToks(b).some(t=>have.has(t))) pts+=3;
   else missing.push('a base malt or extract');
-  // dark extract penalty for pale styles
-  if(have.has('darkextract')&&!have.has('extract')){ const s=+b.srm; if(s<=6) pts-=2; else if(s<=10) pts-=1; }
   // character base/adjunct malts (Munich, Vienna, Wheat, oats, etc.) — flagged individually like specialty grains; plain extract doesn't supply their character
   charBaseToks(b).forEach(t=>{ max+=1; if(have.has(t))pts+=1; else missing.push(REQLABEL[t]||LABEL[t]||t); });
   specToks(b).forEach(t=>{ max+=1; if(have.has(t))pts+=1; else missing.push(REQLABEL[t]||t); });
@@ -1602,7 +1600,16 @@ function matchBeer(b){
     }
   });
   max+=2; const cat=yeastToken(b); const ys=yeastSat(cat,uy); pts+=2*ys; if(ys===0)missing.push(REQLABEL[cat]);
-  return {pct:Math.round(pts/max*100),missing};
+  let pct=Math.round(pts/max*100);
+  // dark extract shifts the ranking toward dark styles (multiplier keeps 0-100)
+  if(have.has('darkextract')&&!have.has('extract')){
+    const s=+b.srm;
+    if(s<=6) pct=Math.round(pct*0.45);       // pils/lager — wrong extract
+    else if(s<=10) pct=Math.round(pct*0.7);  // golden — too pale
+    else if(s<=18) pct=Math.min(100,Math.round(pct*1.08)); // amber/brown — good match
+    else pct=Math.min(100,Math.round(pct*1.12));           // porter/stout — ideal
+  }
+  return {pct,missing};
 }
 
 function buildChips(){
