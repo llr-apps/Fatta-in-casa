@@ -751,7 +751,25 @@ const BEERS=[
   grains:[{n:'Pilsner malt',note:'base',kg:6.0},{n:'Clear candi sugar',note:'add to boil — dries it out',kg:0.6,mash:false}],
   hops:[{n:'Saaz',tag:'bitter',t:60,g:35},{n:'Styrian Goldings',tag:'aroma',t:15,g:15}],
   yeast:'WLP530 / Wyeast 3787',ynote:'Belgian abbey strain; pitch cool, free-rise',
-  water:'Soft, low minerals.',mash:M.single66,boil:60,ferm:F.belgian}
+  water:'Soft, low minerals.',mash:M.single66,boil:60,ferm:F.belgian},
+
+ {id:'tennents',name:"Tennent's Lager (clone)",style:'Scottish Pale Lager · ~3 SRM, pale straw gold',desc:"Clone of Scotland's best-selling lager — crisp, light-bodied and clean with a faint biscuity note from Scottish malt, a touch of maize for dryness, and soft German noble hops. Serve very cold.",
+  og:'1.040',fg:'1.008',abv:'4.2%',ibu:'20',srm:'3',type:'lager',pitch:'10–12 °C',
+  grains:[{n:'Pilsner malt',note:'Scottish barley base',kg:3.5},{n:'Flaked maize (or Nostrano polenta)',note:'~10% — lightens body and dries the finish',kg:0.4}],
+  hops:[{n:'Hallertau Magnum',tag:'bitter',t:60,g:18},{n:'Tettnang',tag:'aroma',t:15,g:15}],
+  yeast:'W-34/70',ynote:'Clean lager strain — ferment at 10–12 °C for maximum crispness',
+  water:'Soft, very low mineral. Scottish highland water is near-RO softness — treat with a pinch of CaCl₂ only.',
+  tip:"Tennent's officially uses Hercules and Tettnang hops with a proprietary historic yeast strain. Hallertau Magnum is the closest widely available substitute for Hercules — same clean high-alpha bittering profile. Ferment cold and lager 2 weeks minimum for that clean, neutral finish.",
+  mash:M.lagerSacc,boil:60,ferm:F.lager},
+
+ {id:'tensuper',name:"Tennent's Super (9% strong lager clone)",style:'European Strong Lager · ~5 SRM, deep gold',desc:"High-gravity clone of Scotland's iconic strong lager — big malty backbone, warming alcohol, surprisingly clean for the strength. Dextrose lightens the body and pushes the ABV without darkening the colour. Handle with respect.",
+  og:'1.090',fg:'1.015',abv:'9.8%',ibu:'28',srm:'5',type:'lager',pitch:'18–20 °C',
+  grains:[{n:'Pilsner malt',note:'base',kg:6.5},{n:'Dextrose (corn sugar)',note:'add in TWO doses: half at start of fermentation, half after 48 h — prevents yeast stress at high OG',kg:1.5,mash:false}],
+  hops:[{n:'Hallertau Magnum',tag:'bitter',t:60,g:30},{n:'Saaz',tag:'aroma',t:15,g:15}],
+  yeast:'SafAle US-05',ynote:'Use 3 packs minimum — high gravity needs a big pitch; W-34/70 can stall above 8%',
+  water:'Soft, low mineral.',
+  tip:'Strong lager tips: (1) Pitch 3 packs and oxygenate well — at OG 1.090 underpitching stalls fermentation and leaves sweetness. (2) Add dextrose in two doses 48 h apart to avoid osmotic shock. (3) Ferment at 18–20 °C for clean results, then cold-crash and lager 1 week before kegging. (4) This beer improves significantly with 2–3 weeks conditioning — resist tapping early.',
+  mash:M.single67,boil:60,ferm:F.big}
 ];
 
 /* ---- state ---- */
@@ -773,7 +791,17 @@ function role(g){
   return 'base';
 }
 // LME type by color
-function lmeType(){ const s=+beer.srm; return s<=6 ? 'Light / Pilsen LME' : s<=14 ? 'Amber LME' : 'Dark LME'; }
+function hasDarkExtract(){ return have.has('darkextract') && !have.has('extract'); }
+function lmeType(){ 
+  if(hasDarkExtract()) return 'Dark malt extract (e.g. Meridian)';
+  const s=+beer.srm; return s<=6 ? 'Light / Pilsen LME' : s<=14 ? 'Amber LME' : 'Dark LME'; 
+}
+function darkExtractWarning(){
+  if(!hasDarkExtract()) return '';
+  const s=+beer.srm;
+  if(s<=6) return `<div class="fit-note" style="border-color:var(--copper)">⚠ <b>Dark extract warning:</b> you have dark malt extract (e.g. Meridian, ~370 g/jar). This style targets a pale/straw colour (${beer.srm} SRM) but dark extract will push it to amber/brown and add caramel/toffee notes. The beer will still be drinkable — just not true to style. For a proper lager/pils, swap to light LME. For today: styles like Brown Ale, Porter, ESB, or Amber work well with dark extract.</div>`;
+  return '';
+}
 function lmeKg(){ // base + adjunct grains (except maize, which is cereal-mashed) converted to extract
   return beer.grains.filter(g=>['base','adjunct'].includes(role(g)) && grainToken(g.n)!=='maize').reduce((s,g)=>s+g.kg,0) * LME_FACTOR;
 }
@@ -831,7 +859,8 @@ function renderIngredients(){
   const k = vol/BASE;
   const banner = beer.fitted ? `<div class="fit-note">🧰 Adapted to your cupboard — swapped or dropped what you didn't have (look for “your sub” tags). Tap <b>Edit / use what I have</b> to fine-tune, or reload the style from the picker for the original.</div>` : '';
   if(mode==='extract'){
-    let rows = `<div class="row"><div class="name">${lmeType()}<small>replaces the mashed barley — stir in off the heat</small></div><div class="amt">${fmtKg(lmeKg()*k)}</div></div>`;
+    let rows = darkExtractWarning();
+    rows += `<div class="row"><div class="name">${lmeType()}<small>replaces the mashed barley — stir in off the heat</small></div><div class="amt">${fmtKg(lmeKg()*k)}</div></div>`;
     maizeGrains().forEach(g=>{
       rows += `<div class="row"><div class="name">${g.n} <span class="tag">partial mash</span><small>corn needs a small partial mash with base malt to convert — or omit it</small></div><div class="amt">${fmtKg(g.kg*k)}</div></div>`;
     });
@@ -861,6 +890,7 @@ function renderIngredients(){
     let txt = `<b>Extract brew — no mash, so no strike or sparge.</b> ${beer.water} `;
     if(w.steepKg>0) txt += `Steep the specialty grains in <b style="color:var(--gold-bright)">${fmtL(w.steepWater)}</b> at ~67 °C and lift them out, then top up to a boil volume of <b style="color:var(--gold-bright)">${fmtL(w.preBoil)}</b> and stir in the ${lmeType()} off the heat. `;
     else txt += `Heat about <b style="color:var(--gold-bright)">${fmtL(w.preBoil)}</b> of water to your boil volume and stir in the ${lmeType()} off the heat — no grains to steep. `;
+    if(hasDarkExtract()){ const jars=Math.ceil((lmeKg()*k*1000)/370); txt+=` <b>Meridian jars needed: ${jars} × 370 g</b> (${(lmeKg()*k).toFixed(2)} kg total).`; }
     txt += `You'll boil off ${fmtL(w.boilOff)}; after chilling, top up with cool, clean water to <b>${vol} L</b> in the fermenter (boiled a smaller, partial volume? just add the rest cold at the end).`;
     if(maizeGrains().length) txt += ` The maize needs its own small partial mash (see the steps) — plain extract can't convert corn.`;
     else if(hasFlaked()) txt += ` This recipe has flaked/unmalted grain that really wants mashing — the LME approximates it, but a small partial mash gets closer.`;
@@ -1300,7 +1330,7 @@ document.getElementById('carbVols').addEventListener('input',e=>{ const v=parseF
    Persists in localStorage. Auto-syncs cupboard chips.          */
 const PANTRY_UNITS={
   // fermentables → kg
-  pilsner:'kg',pale:'kg',munich:'kg',vienna:'kg',wheat:'kg',maize:'kg',oats:'kg',flakedwheat:'kg',flakedbarley:'kg',crystal:'kg',choc:'kg',roast:'kg',darkmalt:'kg',sugar:'kg',extract:'kg',
+  pilsner:'kg',pale:'kg',munich:'kg',vienna:'kg',wheat:'kg',maize:'kg',oats:'kg',flakedwheat:'kg',flakedbarley:'kg',crystal:'kg',choc:'kg',roast:'kg',darkmalt:'kg',sugar:'kg',extract:'kg',darkextract:'kg',
   // hops → g
   saaz:'g',hallertau:'g',tettnang:'g',styrian:'g',spalt:'g',cascade:'g',centennial:'g',columbus:'g',citra:'g',mosaic:'g',simcoe:'g',amarillo:'g',chinook:'g',ekg:'g',fuggle:'g',challenger:'g',nelson:'g',galaxy:'g',motueka:'g',riwaka:'g',
   // yeast → packs
@@ -1448,7 +1478,7 @@ function renderAll(){
 /* ---- ingredient matcher ---- */
 const INGREDIENTS=[
   {g:'Fermentables',items:[['pilsner','Pilsner malt'],['pale','Pale / Maris Otter'],['munich','Munich malt'],['vienna','Vienna malt'],['wheat','Wheat malt'],['maize','Nostrano / maize (polenta)'],['oats','Flaked oats'],['flakedwheat','Flaked/raw wheat'],['flakedbarley','Flaked barley'],['crystal','Crystal / Caramel'],['choc','Chocolate malt'],['roast','Roasted / Black'],['darkmalt','Carafa (dark)'],['sugar','Candi sugar']]},
-  {g:'Extract',items:[['extract','Malt extract (LME / DME)']]},
+  {g:'Extract',items:[['extract','Malt extract (LME / DME) — light/amber'],['darkextract','Dark malt extract (e.g. Meridian)']]},
   {g:'Hops — noble',items:[['saaz','Saaz'],['hallertau','Hallertau'],['tettnang','Tettnang'],['styrian','Styrian Goldings'],['spalt','Spalt']]},
   {g:'Hops — American',items:[['cascade','Cascade'],['centennial','Centennial'],['columbus','Columbus'],['citra','Citra'],['mosaic','Mosaic'],['simcoe','Simcoe'],['amarillo','Amarillo'],['chinook','Chinook']]},
   {g:'Hops — English',items:[['ekg','East Kent Goldings'],['fuggle','Fuggle'],['challenger','Challenger']]},
@@ -1492,7 +1522,7 @@ function grainToken(name){
   if(/chocolate/.test(n))return'choc';
   if(/roasted|black malt|roast/.test(n))return'roast';
   if(/carafa/.test(n))return'darkmalt';
-  if(/candi|sugar/.test(n))return'sugar';
+  if(/candi|sugar|dextrose|corn sugar|glucose/.test(n))return'sugar';
   return'pale';
 }
 function hopFamFromName(name){
@@ -1545,9 +1575,11 @@ function matchBeer(b){
   let pts=0,max=0; const missing=[];
   const uf=userHopFams(), uy=userYeastCats();
   max+=3;
-  if(have.has('extract'))pts+=3;
-  else if(baseToks(b).some(t=>have.has(t)))pts+=3;
+  if(have.has('extract')||have.has('darkextract')) pts+=3;
+  else if(baseToks(b).some(t=>have.has(t))) pts+=3;
   else missing.push('a base malt or extract');
+  // dark extract penalty for pale styles
+  if(have.has('darkextract')&&!have.has('extract')){ const s=+b.srm; if(s<=6) pts-=2; else if(s<=10) pts-=1; }
   // character base/adjunct malts (Munich, Vienna, Wheat, oats, etc.) — flagged individually like specialty grains; plain extract doesn't supply their character
   charBaseToks(b).forEach(t=>{ max+=1; if(have.has(t))pts+=1; else missing.push(REQLABEL[t]||LABEL[t]||t); });
   specToks(b).forEach(t=>{ max+=1; if(have.has(t))pts+=1; else missing.push(REQLABEL[t]||t); });
@@ -1628,7 +1660,7 @@ function loadBeer(idx){
   beer=fitToCupboard(cloneBeer(baseBeer));
   picker.value=idx;
   // if they have extract but no matching base grain, flip to extract mode
-  if(have.has('extract') && !baseToks(beer).some(t=>have.has(t))){
+  if((have.has('extract')||have.has('darkextract')) && !baseToks(beer).some(t=>have.has(t))){
     mode='extract'; document.querySelectorAll('#modeToggle button').forEach(x=>x.classList.toggle('on',x.dataset.mode==='extract'));
   }
   resetTimer(); renderAll();
