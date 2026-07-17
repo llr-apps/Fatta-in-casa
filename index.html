@@ -75,6 +75,14 @@
   .rtext{display:flex;flex-direction:column;min-width:0}
   .rname{font-size:14px;font-weight:600;color:var(--foam)}
   .rmiss{font-size:11.5px;color:var(--dim);margin-top:2px}
+  .rtop{display:flex;align-items:center;gap:12px}
+  .rstars{font-size:11px;color:var(--gold);letter-spacing:1px;display:block;margin-top:1px}
+  .rbreak{display:flex;flex-direction:column;gap:3px;margin:8px 0 6px;padding-left:64px}
+  .bd-row{display:flex;align-items:center;gap:7px}
+  .bd-l{font-size:10px;color:var(--dim);width:38px;text-transform:uppercase;letter-spacing:.04em;font-family:'Oswald',sans-serif}
+  .bd-bar{flex:1;height:5px;background:var(--bg);border-radius:3px;overflow:hidden}
+  .bd-fill{display:block;height:100%;background:var(--gold);border-radius:3px}
+  .bd-p{font-size:10px;color:var(--dim);width:30px;text-align:right;font-family:'Oswald',sans-serif}
 
   .batch{margin:14px 0 6px;padding:16px 18px;background:var(--bg2);border:1px solid var(--line);border-radius:14px}
   .batch-top{display:flex;justify-content:space-between;align-items:baseline}
@@ -774,7 +782,7 @@ const BEERS=[
 
 /* ---- state ---- */
 function cloneBeer(b){ return JSON.parse(JSON.stringify(b)); }
-const APP_VERSION = '1.8.0';
+const APP_VERSION = '1.9.0';
 let beer = cloneBeer(BEERS[0]), vol = 20, mode = 'grain';
 const BASE = 20;
 const LME_FACTOR = 0.75; // 1 kg mashed base grain ≈ 0.75 kg liquid malt extract
@@ -820,6 +828,16 @@ function packsNum(){
 }
 function packsFor(){ const p=packsNum(); return p===1 ? '1 pack' : p+' packs'; }
 function totalGrainKg(){ return beer.grains.filter(g=>g.mash!==false).reduce((s,g)=>s+g.kg,0); }
+// rough per-addition IBU (simplified Tinseth). Alpha estimated by hop family.
+const HOP_ALPHA={saaz:3.5,hallertau:4,tettnang:4.5,styrian:5,spalt:4,cascade:6,centennial:10,columbus:15,citra:12,mosaic:12,simcoe:13,amarillo:9,chinook:13,ekg:5,fuggle:4.5,challenger:7.5,nelson:12,galaxy:14,motueka:7,riwaka:6};
+function hopIBU(h,k){
+  const vars=hopVarsFromName(h.n); const a=(vars.length?HOP_ALPHA[vars[0]]:null)||8;
+  const og=parseFloat(beer.og)||1.05, V=vol; // finished volume approximation
+  const grams=h.g*k;
+  const util=(1.65*Math.pow(0.000125,og-1))*((1-Math.exp(-0.04*h.t))/4.15);
+  const ibu=(grams*a/100*util*1000)/V;
+  return Math.round(ibu);
+}
 // Water model (litres), scaled to the chosen batch volume.
 // pre-boil = (target + kettle/trub loss) / (1 - boil-off fraction); boil-off ≈ 10%/hr of pre-boil.
 function waterVols(){
@@ -881,7 +899,9 @@ function renderIngredients(){
   document.getElementById('hops').innerHTML = beer.hops.map(h=>{
     const when = typeof h.t==='number' ? `added at ${h.t} min` : h.t;
     const subtag = h.sub ? ' <span class="tag" style="border-color:var(--copper-text);color:var(--copper-text)">your sub</span>' : '';
-    return `<div class="row"><div class="name">${h.n} <span class="tag">${h.tag}</span>${subtag}<small>${when}</small></div><div class="amt">${fmtG(h.g*k)}</div></div>`;
+    let ibuStr='';
+    if(typeof h.t==='number' && h.t>0){ const ibu=hopIBU(h,k); if(ibu>=1) ibuStr=` · ~${ibu} IBU`; }
+    return `<div class="row"><div class="name">${h.n} <span class="tag">${h.tag}</span>${subtag}<small>${when}${ibuStr}</small></div><div class="amt">${fmtG(h.g*k)}</div></div>`;
   }).join('');
   document.getElementById('yeast').textContent = packsFor();
   document.getElementById('yeastNote').textContent = beer.yeast + (beer.ynote?` · ${beer.ynote}`:'');
@@ -1363,7 +1383,7 @@ function renderPantry(){
       const qty=pantryQty(tok), unit=PANTRY_UNITS[tok]||'';
       const low=qty>0&&qty<=PANTRY_LOW[unit];
       const cls=qty===0?'pantry-row pantry-empty':'pantry-row';
-      return `<div class="${cls}"><div class="pantry-name">${label}<small>${unit}</small></div><input class="pantry-qty${low?' pantry-low':''}" data-tok="${tok}" type="number" min="0" step="${unit==='g'?1:unit==='packs'?1:0.1}" inputmode="decimal" value="${qty>0?qty:''}"></div>`;
+      return `<div class="${cls}"><div class="pantry-name">${label}<small>${unit}</small></div><input class="pantry-qty${low?' pantry-low':''}" data-tok="${tok}" type="number" min="0" step="${unit==='g'?1:unit==='packs'?1:0.1}" inputmode="decimal" placeholder="0" value="${qty>0?qty:''}"></div>`;
     }).join('');
     return `<div class="pantry-grp"><div class="pantry-grp-head">${grp.g}</div>${rows}</div>`;
   }).join('');
@@ -1574,42 +1594,43 @@ function yeastSat(req,cats){
 function matchBeer(b){
   let pts=0,max=0; const missing=[];
   const uf=userHopFams(), uy=userYeastCats();
-  max+=3;
-  if(have.has('extract')||have.has('darkextract')) pts+=3;
-  else if(baseToks(b).some(t=>have.has(t))) pts+=3;
+  // per-category tracking for the transparent breakdown
+  const cats={ferment:{p:0,m:0},hops:{p:0,m:0},yeast:{p:0,m:0}};
+  max+=3; cats.ferment.m+=3;
+  if(have.has('extract')||have.has('darkextract')){ pts+=3; cats.ferment.p+=3; }
+  else if(baseToks(b).some(t=>have.has(t))){ pts+=3; cats.ferment.p+=3; }
   else missing.push('a base malt or extract');
-  // character base/adjunct malts (Munich, Vienna, Wheat, oats, etc.) — flagged individually like specialty grains; plain extract doesn't supply their character
-  charBaseToks(b).forEach(t=>{ max+=1; if(have.has(t))pts+=1; else missing.push(REQLABEL[t]||LABEL[t]||t); });
-  specToks(b).forEach(t=>{ max+=1; if(have.has(t))pts+=1; else missing.push(REQLABEL[t]||t); });
+  charBaseToks(b).forEach(t=>{ max+=1; cats.ferment.m+=1; if(have.has(t)){pts+=1; cats.ferment.p+=1;} else missing.push(REQLABEL[t]||LABEL[t]||t); });
+  specToks(b).forEach(t=>{ max+=1; cats.ferment.m+=1; if(have.has(t)){pts+=1; cats.ferment.p+=1;} else missing.push(REQLABEL[t]||t); });
   hopFams(b).forEach(f=>{
-    max+=2;
-    // specific varieties this beer uses from family f
+    max+=2; cats.hops.m+=2;
     const vs=[...new Set(b.hops.filter(h=>hopFamFromName(h.n)===f).flatMap(h=>hopVarsFromName(h.n)).filter(t=>HOPFAM[t]===f))];
     const present=vs.filter(t=>have.has(t));
     let v;
-    if(vs.length===0){ v=uf.has(f)?1:0; }            // no recognised varieties — fall back to family
-    else if(present.length===vs.length){ v=1; }       // have every specific hop
-    else if(present.length>0){ v=0.85; }              // have some of them
-    else if(uf.has(f)){ v=0.6; }                      // only a same-family substitute
+    if(vs.length===0){ v=uf.has(f)?1:0; }
+    else if(present.length===vs.length){ v=1; }
+    else if(present.length>0){ v=0.85; }
+    else if(uf.has(f)){ v=0.6; }
     else if((f==='american'&&uf.has('newworld'))||(f==='newworld'&&uf.has('american'))){ v=0.5; }
     else { v=0; }
-    pts+=2*v;
+    pts+=2*v; cats.hops.p+=2*v;
     if(v<1){
       if(vs.length){ vs.filter(t=>!have.has(t)).forEach(t=>{ const lbl=HOPLABEL[t]||REQLABEL[f]; if(!missing.includes(lbl))missing.push(lbl); }); }
       else if(!missing.includes(REQLABEL[f])){ missing.push(REQLABEL[f]); }
     }
   });
-  max+=2; const cat=yeastToken(b); const ys=yeastSat(cat,uy); pts+=2*ys; if(ys===0)missing.push(REQLABEL[cat]);
+  max+=2; cats.yeast.m+=2; const cat=yeastToken(b); const ys=yeastSat(cat,uy); pts+=2*ys; cats.yeast.p+=2*ys; if(ys===0)missing.push(REQLABEL[cat]);
   let pct=Math.round(pts/max*100);
-  // dark extract shifts the ranking toward dark styles (multiplier keeps 0-100)
   if(have.has('darkextract')&&!have.has('extract')){
     const s=+b.srm;
-    if(s<=6) pct=Math.round(pct*0.45);       // pils/lager — wrong extract
-    else if(s<=10) pct=Math.round(pct*0.7);  // golden — too pale
-    else if(s<=18) pct=Math.min(100,Math.round(pct*1.08)); // amber/brown — good match
-    else pct=Math.min(100,Math.round(pct*1.12));           // porter/stout — ideal
+    if(s<=6) pct=Math.round(pct*0.45);
+    else if(s<=10) pct=Math.round(pct*0.7);
+    else if(s<=18) pct=Math.min(100,Math.round(pct*1.08));
+    else pct=Math.min(100,Math.round(pct*1.12));
   }
-  return {pct,missing};
+  const pctOf=c=>c.m>0?Math.round(c.p/c.m*100):100;
+  const breakdown={ferment:pctOf(cats.ferment),hops:pctOf(cats.hops),yeast:pctOf(cats.yeast)};
+  return {pct,missing,breakdown};
 }
 
 function buildChips(){
@@ -1620,10 +1641,13 @@ function suggest(){
   const box=document.getElementById('suggestResults');
   if(have.size===0){ box.innerHTML='<p class="suggest-hint">Pick a few ingredients above to see matches.</p>'; return; }
   const ranked=BEERS.map((b,i)=>({i,b,...matchBeer(b)})).sort((a,z)=>z.pct-a.pct).slice(0,4);
+  const stars=p=>{ const n=Math.round(p/20); return '★'.repeat(n)+'☆'.repeat(5-n); };
   box.innerHTML=ranked.map(r=>{
     let miss='you have it all ✓';
-    if(r.missing.length){ const show=r.missing.slice(0,3).join(', '); miss='still need: '+show+(r.missing.length>3?` +${r.missing.length-3} more`:''); }
-    return `<button class="result ${r.pct>=90?'full':''}" data-idx="${r.i}"><span class="pct">${r.pct}%</span><span class="rtext"><span class="rname">${r.b.name}</span><span class="rmiss">${miss}</span></span></button>`;
+    if(r.missing.length){ const show=r.missing.slice(0,3).join(', '); miss='Missing: '+show+(r.missing.length>3?` +${r.missing.length-3} more`:''); }
+    const bd=r.breakdown;
+    const bar=(label,p)=>`<span class="bd-row"><span class="bd-l">${label}</span><span class="bd-bar"><span class="bd-fill" style="width:${p}%"></span></span><span class="bd-p">${p}%</span></span>`;
+    return `<button class="result ${r.pct>=90?'full':''}" data-idx="${r.i}"><span class="rtop"><span class="pct">${r.pct}%</span><span class="rtext"><span class="rname">${r.b.name}</span><span class="rstars">${stars(r.pct)}</span></span></span><span class="rbreak">${bar('Malts',bd.ferment)}${bar('Hops',bd.hops)}${bar('Yeast',bd.yeast)}</span><span class="rmiss">${miss}</span></button>`;
   }).join('');
 }
 // map a cupboard token back to a usable ingredient name for substitutions
