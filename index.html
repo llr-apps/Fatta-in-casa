@@ -83,6 +83,25 @@
   .bd-bar{flex:1;height:5px;background:var(--bg);border-radius:3px;overflow:hidden}
   .bd-fill{display:block;height:100%;background:var(--gold);border-radius:3px}
   .bd-p{font-size:10px;color:var(--dim);width:30px;text-align:right;font-family:'Oswald',sans-serif}
+  /* brew wizard */
+  .wizard{background:linear-gradient(135deg,rgba(232,163,23,.12),rgba(232,163,23,.03));border:1px solid var(--gold);border-radius:14px;margin-bottom:12px;overflow:hidden}
+  .wiz-head{width:100%;background:none;border:none;color:var(--gold-bright);font-family:'Oswald',sans-serif;font-size:16px;font-weight:600;letter-spacing:.02em;padding:15px 16px;text-align:left;cursor:pointer;display:flex;justify-content:space-between;align-items:center}
+  .wiz-body{padding:0 16px 16px}
+  .wiz-q{font-size:14px;color:var(--foam);margin:4px 0 12px;line-height:1.4}
+  .wiz-opts{display:flex;flex-direction:column;gap:8px}
+  .wiz-opt{background:var(--bg2);border:1px solid var(--line);color:var(--foam);border-radius:10px;padding:13px 15px;text-align:left;font-size:14px;cursor:pointer;transition:.12s;display:flex;align-items:center;gap:10px}
+  .wiz-opt:active,.wiz-opt:hover{border-color:var(--gold);background:var(--bg)}
+  .wiz-opt .emoji{font-size:20px;flex:none}
+  .wiz-opt .sub{display:block;font-size:11.5px;color:var(--dim);margin-top:2px}
+  .wiz-opt b{color:var(--gold-bright);font-weight:600}
+  .wiz-back{background:none;border:none;color:var(--dim);font-size:12.5px;cursor:pointer;padding:6px 0;margin-top:6px}
+  .wiz-back:active{color:var(--gold)}
+  .wiz-link{background:none;border:1px dashed var(--line);color:var(--gold-bright);border-radius:8px;padding:9px 12px;font-size:13px;cursor:pointer;width:100%;margin-top:4px}
+  .wiz-res{background:var(--bg2);border:1px solid var(--line);border-radius:10px;padding:12px 14px;margin-bottom:8px;cursor:pointer;display:flex;align-items:center;gap:12px}
+  .wiz-res:active{border-color:var(--gold)}
+  .wiz-res .wpct{font-family:'Oswald',sans-serif;font-size:20px;font-weight:600;color:var(--gold-bright);width:48px;flex:none}
+  .wiz-res .wname{font-size:14px;color:var(--foam)}
+  .wiz-res .wsub{font-size:11.5px;color:var(--dim);margin-top:1px}
 
   .batch{margin:14px 0 6px;padding:16px 18px;background:var(--bg2);border:1px solid var(--line);border-radius:14px}
   .batch-top{display:flex;justify-content:space-between;align-items:baseline}
@@ -328,6 +347,13 @@
   </div>
   <div id="brewName" class="brew-name" hidden></div>
   <div class="desc" id="desc"></div>
+
+  <div class="wizard" id="wizard">
+    <button class="wiz-head" id="wizToggle">🍺 What do you want to brew today? <span id="wizCaret">▾</span></button>
+    <div class="wiz-body" id="wizBody" hidden>
+      <div class="wiz-step" id="wizStep"></div>
+    </div>
+  </div>
 
   <div class="suggest">
     <button class="suggest-head" id="suggestToggle">🔍 Find a style from what I have <span id="suggestCaret">▴</span></button>
@@ -782,7 +808,7 @@ const BEERS=[
 
 /* ---- state ---- */
 function cloneBeer(b){ return JSON.parse(JSON.stringify(b)); }
-const APP_VERSION = '1.9.0';
+const APP_VERSION = '2.0.0';
 let beer = cloneBeer(BEERS[0]), vol = 20, mode = 'grain';
 const BASE = 20;
 const LME_FACTOR = 0.75; // 1 kg mashed base grain ≈ 0.75 kg liquid malt extract
@@ -1243,6 +1269,96 @@ document.getElementById('hopSched').addEventListener('click',e=>{ const line=e.t
 // resync display when returning to the app
 document.addEventListener('visibilitychange',()=>{ if(!document.hidden){ if(timer!==null) tick(); if(chillT.iv) chillTick(); } });
 window.addEventListener('focus',()=>{ if(timer!==null) tick(); if(chillT.iv) chillTick(); });
+
+/* ---- Brew wizard: "what do you want to brew today?" → vibe → ingredients → proposals ---- */
+// classify each beer into vibe tags for the wizard
+function beerVibes(b){
+  const n=(b.name+' '+b.style+' '+b.desc).toLowerCase(), v=[];
+  const srm=+b.srm, abv=parseFloat(b.abv), ibu=+b.ibu, lager=b.type==='lager';
+  if(lager||/\bpils|lager|helles|schwarz|dunkel|märzen|\bvienna/.test(n)) v.push('crisp');
+  if(/\bipa\b|pale ale|\bapa\b|neipa|west coast/.test(n) || (ibu>=45&&srm<14)) v.push('hoppy');
+  if(!lager && /english|\besb\b|brown ale|\bmild\b|\bbitter\b/.test(n) && !/\bipa\b/.test(n)) v.push('english');
+  if(srm>=20 || /stout|\bporter\b|schwarz|dunkel/.test(n)) v.push('dark');
+  if(/hefe|weizen|weiss|witbier|belgian|tripel|saison|dubbel/.test(n)) v.push('fruity');
+  if(abv>=7.5) v.push('strong');
+  if(abv<=4.6&&ibu<40&&srm<20) v.push('easy');
+  if(srm<=6&&lager) v.push('pale');
+  return v;
+}
+const WIZ_INTENTS=[
+  {id:'crisp', emoji:'🍺', label:'A proper crisp lager / pilsner', sub:'clean, dry, refreshing', vibe:'crisp'},
+  {id:'hoppy', emoji:'🌿', label:'Something hoppy — IPA / pale ale', sub:'citrus, pine, bitter', vibe:'hoppy'},
+  {id:'english', emoji:'🍂', label:'Something English & malty', sub:'bitter, brown, ESB, porter', vibe:'english'},
+  {id:'fruity', emoji:'🍌', label:'Fruity / spicy — wheat or Belgian', sub:'hefeweizen, wit, tripel, saison', vibe:'fruity'},
+  {id:'dark', emoji:'⬛', label:'Dark & roasty — stout / porter', sub:'coffee, chocolate, smooth', vibe:'dark'},
+  {id:'strong', emoji:'💪', label:'Something strong', sub:'imperial, tripel, doppelbock', vibe:'strong'},
+  {id:'easy', emoji:'🥤', label:'An easy session beer', sub:'low alcohol, all-day drinkable', vibe:'easy'},
+];
+let wizVibe=null;
+function wizRender(html){ document.getElementById('wizStep').innerHTML=html; }
+function wizStart(){
+  wizVibe=null;
+  wizRender(`<div class="wiz-q">What are you in the mood for?</div><div class="wiz-opts">`+
+    WIZ_INTENTS.map(it=>`<button class="wiz-opt" data-vibe="${it.id}"><span class="emoji">${it.emoji}</span><span>${it.label}<span class="sub">${it.sub}</span></span></button>`).join('')+
+    `</div>`);
+}
+function wizAskIngredients(vibeId){
+  wizVibe=vibeId;
+  const it=WIZ_INTENTS.find(x=>x.id===vibeId);
+  const haveCount=have.size;
+  wizRender(`<div class="wiz-q">Nice — <b>${it.label.toLowerCase()}</b>. What have you got in the house?</div>`+
+    `<div class="wiz-opts">`+
+    `<button class="wiz-opt" data-act="tellme"><span class="emoji">🧰</span><span>Let me pick my ingredients<span class="sub">${haveCount>0?haveCount+' selected so far':'opens the cupboard below'}</span></span></button>`+
+    `<button class="wiz-opt" data-act="show"><span class="emoji">✨</span><span>Just show me what fits${haveCount>0?'':' (any ingredients)'}<span class="sub">${haveCount>0?'rank using what I already ticked':'best matches for this style'}</span></span></button>`+
+    `</div>`+
+    `<button class="wiz-back" data-act="back">← back</button>`);
+}
+function wizShowResults(){
+  const it=WIZ_INTENTS.find(x=>x.id===wizVibe);
+  // rank beers: matchBeer score (if ingredients selected) blended with vibe fit
+  let ranked=BEERS.map((b,i)=>{
+    const m=matchBeer(b);
+    const vibeFit=beerVibes(b).includes(it.vibe)?1:0;
+    // if user has ingredients, weight the match; always require some vibe fit to surface
+    const score = have.size>0 ? Math.round(m.pct*0.7 + vibeFit*30) : (vibeFit?100:40) - i*0.1;
+    return {i,b,m,vibeFit,score};
+  }).filter(r=>r.vibeFit || have.size===0);
+  ranked = ranked.filter(r=>r.vibeFit).sort((a,z)=>z.score-a.score).slice(0,4);
+  if(ranked.length===0){ ranked=BEERS.map((b,i)=>({i,b,m:matchBeer(b)})).sort((a,z)=>z.m.pct-a.m.pct).slice(0,3); }
+  const rows=ranked.map(r=>{
+    const pct = have.size>0 ? r.m.pct+'%' : '★';
+    const sub = r.m.missing && r.m.missing.length ? 'Missing: '+r.m.missing.slice(0,2).join(', ')+(r.m.missing.length>2?'…':'') : (have.size>0?'you have it all ✓':r.b.style.split('·')[0]);
+    return `<div class="wiz-res" data-idx="${r.i}"><span class="wpct">${pct}</span><span><span class="wname">${r.b.name}</span><span class="wsub">${sub}</span></span></div>`;
+  }).join('');
+  wizRender(`<div class="wiz-q">Here's what I'd brew for <b>${it.label.toLowerCase()}</b>${have.size>0?' with your ingredients':''}:</div>`+
+    rows+
+    `<button class="wiz-back" data-act="restart">↺ start over</button>`);
+}
+document.getElementById('wizToggle').addEventListener('click',()=>{
+  const body=document.getElementById('wizBody');
+  body.hidden=!body.hidden;
+  document.getElementById('wizCaret').textContent=body.hidden?'▾':'▴';
+  if(!body.hidden && !document.getElementById('wizStep').innerHTML) wizStart();
+});
+document.getElementById('wizStep').addEventListener('click',e=>{
+  const opt=e.target.closest('[data-vibe],[data-act],[data-idx]'); if(!opt) return;
+  if(opt.dataset.vibe){ wizAskIngredients(opt.dataset.vibe); return; }
+  if(opt.dataset.idx!==undefined){ loadBeer(+opt.dataset.idx); return; }
+  const act=opt.dataset.act;
+  if(act==='back') wizStart();
+  else if(act==='restart') wizStart();
+  else if(act==='show') wizShowResults();
+  else if(act==='tellme'){
+    // open the cupboard matcher and scroll to it
+    const sb=document.getElementById('suggestBody');
+    if(sb.classList.contains('closed')||sb.style.display==='none'){ document.getElementById('suggestToggle').click(); }
+    document.getElementById('chipGroups').scrollIntoView({behavior:'smooth',block:'center'});
+    // leave a "done picking" button in the wizard to jump back to proposals
+    wizRender(`<div class="wiz-q">Pick your ingredients in the cupboard below 👇 — then come back and tap:</div>`+
+      `<button class="wiz-opt" data-act="show"><span class="emoji">✅</span><span>I'm done — show me what I can brew<span class="sub" id="wizPickCount">${have.size} ingredients selected</span></span></button>`+
+      `<button class="wiz-back" data-act="back">← back</button>`);
+  }
+});
 
 /* ---- fun: surprise style, brew-name generator, beeps + confetti ---- */
 document.getElementById('surprise').addEventListener('click',()=>{
@@ -1708,6 +1824,7 @@ document.getElementById('chipGroups').addEventListener('click',e=>{
   const t=c.dataset.tok;
   if(have.has(t)){ have.delete(t); c.classList.remove('on'); } else { have.add(t); c.classList.add('on'); }
   suggest();
+  const wpc=document.getElementById('wizPickCount'); if(wpc) wpc.textContent=have.size+' ingredients selected';
 });
 document.getElementById('suggestResults').addEventListener('click',e=>{
   const r=e.target.closest('.result'); if(!r)return;
