@@ -228,6 +228,11 @@
   .fit-note{background:rgba(232,163,23,.09);border:1px solid var(--line);border-left:3px solid var(--gold);border-radius:10px;padding:11px 13px;font-size:12.5px;color:var(--foam);line-height:1.5;margin-bottom:10px}
   /* pantry */
   .pantry-grp{margin-bottom:14px}
+  .pantry-summary{background:var(--bg2);border:1px solid var(--line);border-left:3px solid var(--gold);border-radius:10px;padding:10px 12px;font-size:12.5px;color:var(--foam);line-height:1.5;margin-bottom:14px}
+  .pantry-nameqty{flex:1;min-width:0;display:flex;flex-direction:column;gap:5px}
+  .pantry-bar{height:5px;background:var(--bg);border-radius:3px;overflow:hidden;width:100%}
+  .pantry-fill{display:block;height:100%;border-radius:3px;transition:width .2s}
+  .pantry-u{font-size:11px;color:var(--dim);min-width:34px}
   .pantry-grp-head{font-family:'Oswald',sans-serif;font-size:11.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--gold-bright);margin:0 0 7px}
   .pantry-row{display:flex;align-items:center;gap:8px;margin-bottom:6px}
   .pantry-name{flex:1;font-size:13px;color:var(--foam)}
@@ -356,7 +361,7 @@
   </div>
 
   <div class="suggest">
-    <button class="suggest-head" id="suggestToggle">🔍 Find a style from what I have <span id="suggestCaret">▴</span></button>
+    <button class="suggest-head" id="suggestToggle">🔍 Let's cook with what I have <span id="suggestCaret">▴</span></button>
     <div class="suggest-body" id="suggestBody">
       <p class="suggest-hint">Tap what you've got in the cupboard — I'll rank the closest styles and show what you're still missing.</p>
       <div class="photo-add">
@@ -562,9 +567,9 @@
   </div>
 
   <footer>
-    Stats stay constant per style; quantities rescale with batch size.<br>
-    Recipes are solid starting points — tune to your system &amp; taste.<br>
-    Cheers! 🍺
+    <b style="color:var(--gold-bright);font-family:'Oswald',sans-serif;letter-spacing:.03em;font-size:12.5px">Recipes adapt to your ingredients.</b><br>
+    Brew. Taste. Improve.<br>
+    <span style="opacity:.7">Built for real homebrewers 🍺</span>
   </footer>
 </div>
 
@@ -808,7 +813,7 @@ const BEERS=[
 
 /* ---- state ---- */
 function cloneBeer(b){ return JSON.parse(JSON.stringify(b)); }
-const APP_VERSION = '2.0.0';
+const APP_VERSION = '2.1.0';
 let beer = cloneBeer(BEERS[0]), vol = 20, mode = 'grain';
 const BASE = 20;
 const LME_FACTOR = 0.75; // 1 kg mashed base grain ≈ 0.75 kg liquid malt extract
@@ -1491,15 +1496,26 @@ function pantrySync(){
   suggest();
 }
 
+// "full" reference amounts for the fill bar (a typical well-stocked amount)
+const PANTRY_FULL={ g:150, kg:5, packs:4 };
 function renderPantry(){
   const list=document.getElementById('pantryList'); if(!list) return;
-  // Build grouped UI from INGREDIENTS array (reuses same groups)
-  list.innerHTML = INGREDIENTS.map(grp=>{
+  // Summary: how many styles you could brew right now (matcher ≥ threshold), + a couple of names
+  let brewable=[];
+  try{ brewable=BEERS.map(b=>({n:b.name,pct:matchBeer(b).pct})).filter(x=>x.pct>=75).sort((a,b)=>b.pct-a.pct); }catch(_){}
+  const anyStock=Object.keys(pantry).some(t=>pantryQty(t)>0);
+  const summary = anyStock
+    ? `<div class="pantry-summary"><b>${brewable.length}</b> ${brewable.length===1?'style':'styles'} you can brew right now${brewable.length?` · e.g. <span style="color:var(--gold-bright)">${brewable.slice(0,2).map(x=>x.n).join(', ')}</span>`:''} — check <b>Let's cook with what I have</b> above.</div>`
+    : `<div class="pantry-summary" style="color:var(--dim)">Add quantities below — the matcher and Brew Day deductions use them.</div>`;
+  list.innerHTML = summary + INGREDIENTS.map(grp=>{
     const rows=grp.items.map(([tok,label])=>{
       const qty=pantryQty(tok), unit=PANTRY_UNITS[tok]||'';
       const low=qty>0&&qty<=PANTRY_LOW[unit];
       const cls=qty===0?'pantry-row pantry-empty':'pantry-row';
-      return `<div class="${cls}"><div class="pantry-name">${label}<small>${unit}</small></div><input class="pantry-qty${low?' pantry-low':''}" data-tok="${tok}" type="number" min="0" step="${unit==='g'?1:unit==='packs'?1:0.1}" inputmode="decimal" placeholder="0" value="${qty>0?qty:''}"></div>`;
+      const pctFull=qty>0?Math.min(100,Math.round(qty/PANTRY_FULL[unit]*100)):0;
+      const barColor=low?'var(--copper)':'var(--gold)';
+      const bar=`<span class="pantry-bar"><span class="pantry-fill" style="width:${pctFull}%;background:${barColor}"></span></span>`;
+      return `<div class="${cls}"><div class="pantry-nameqty"><span class="pantry-name">${label}</span>${qty>0?bar:''}</div><input class="pantry-qty${low?' pantry-low':''}" data-tok="${tok}" type="number" min="0" step="${unit==='g'?1:unit==='packs'?1:0.1}" inputmode="decimal" placeholder="0" value="${qty>0?qty:''}"><span class="pantry-u">${unit}</span></div>`;
     }).join('');
     return `<div class="pantry-grp"><div class="pantry-grp-head">${grp.g}</div>${rows}</div>`;
   }).join('');
@@ -1513,7 +1529,18 @@ document.getElementById('pantryList').addEventListener('input',e=>{
   pantrySave(); pantrySync();
   const unit=PANTRY_UNITS[tok]||'';
   const low=pantry[tok]>0&&pantry[tok]<=PANTRY_LOW[unit];
-  inp.classList.toggle('pantry-low',low); inp.closest('.pantry-row').classList.toggle('pantry-empty',pantry[tok]===0);
+  inp.classList.toggle('pantry-low',low);
+  const row=inp.closest('.pantry-row');
+  row.classList.toggle('pantry-empty',pantry[tok]===0);
+  // live-update the fill bar
+  const nameqty=row.querySelector('.pantry-nameqty');
+  let bar=nameqty.querySelector('.pantry-bar');
+  if(pantry[tok]>0){
+    if(!bar){ bar=document.createElement('span'); bar.className='pantry-bar'; bar.innerHTML='<span class="pantry-fill"></span>'; nameqty.appendChild(bar); }
+    const fill=bar.querySelector('.pantry-fill');
+    fill.style.width=Math.min(100,Math.round(pantry[tok]/PANTRY_FULL[unit]*100))+'%';
+    fill.style.background=low?'var(--copper)':'var(--gold)';
+  } else if(bar){ bar.remove(); }
 });
 
 // Deduct the current recipe's ingredients from stock
