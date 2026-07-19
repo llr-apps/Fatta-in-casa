@@ -233,6 +233,20 @@
   .pantry-bar{height:5px;background:var(--bg);border-radius:3px;overflow:hidden;width:100%}
   .pantry-fill{display:block;height:100%;border-radius:3px;transition:width .2s}
   .pantry-u{font-size:11px;color:var(--dim);min-width:34px}
+  .grav-card{background:var(--bg2);border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin-bottom:12px}
+  .grav-title{font-family:'Oswald',sans-serif;font-size:12px;letter-spacing:.05em;text-transform:uppercase;color:var(--gold-bright);margin-bottom:8px}
+  .grav-svg{width:100%;height:120px;display:block}
+  .grav-cap{font-size:11.5px;color:var(--dim);margin-top:6px;text-align:center}
+  .stat-off{font-size:9px;color:var(--copper-text);vertical-align:middle;margin-left:2px}
+  .brewfs{position:fixed;inset:0;z-index:2000;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:24px}
+  .brewfs.flash{animation:fsflash 1s ease-in-out infinite}
+  @keyframes fsflash{0%,100%{background:var(--bg)}50%{background:#2a1c0a}}
+  .fs-exit{position:absolute;top:20px;right:20px;background:var(--bg2);border:1px solid var(--line);color:var(--foam);border-radius:10px;padding:10px 16px;font-size:14px;cursor:pointer}
+  .fs-clock{font-family:'Oswald',sans-serif;font-weight:600;font-size:24vw;line-height:1;color:var(--gold-bright);letter-spacing:-.02em}
+  .fs-instr{font-family:'Oswald',sans-serif;font-size:8vw;line-height:1.1;color:var(--foam);margin-top:20px;text-transform:uppercase;letter-spacing:.02em}
+  .fs-instr b{color:var(--copper-text)}
+  .fs-sub{font-family:'Oswald',sans-serif;font-size:12vw;color:var(--copper-text);margin-top:8px;font-weight:600}
+  @media(min-width:600px){.fs-clock{font-size:140px}.fs-instr{font-size:44px}.fs-sub{font-size:64px}}
   .pantry-grp-head{font-family:'Oswald',sans-serif;font-size:11.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--gold-bright);margin:0 0 7px}
   .pantry-row{display:flex;align-items:center;gap:8px;margin-bottom:6px}
   .pantry-name{flex:1;font-size:13px;color:var(--foam)}
@@ -425,6 +439,7 @@
       <div class="clock" id="clock">60:00</div>
       <div class="clock-label" id="clock-label">drag the dial to start the boil</div>
       <input type="range" class="boil-knob" id="boilKnob" min="0" max="60" step="0.5" value="0" aria-label="boil progress">
+      <button class="mini-btn" id="fsOpen" style="margin-top:10px">⛶ Full-screen brew mode</button>
       <div class="knob-scale"><span>start</span><span id="knobMax">60 min</span></div>
       <div class="hop-schedule" id="hopSched"></div>
     </div>
@@ -494,6 +509,7 @@
         </div>
       </div>
       <div class="log-hint" id="autoStats" style="margin:0 0 8px"></div>
+      <div id="gravGraph"></div>
       <div class="log-list" id="logList"></div>
       <div class="list-actions">
         <button class="mini-btn" id="logExport">⬇️ Export / copy</button>
@@ -571,6 +587,13 @@
     Brew. Taste. Improve.<br>
     <span style="opacity:.7">Built for real homebrewers 🍺</span>
   </footer>
+</div>
+
+<div id="brewFS" class="brewfs" hidden>
+  <button class="fs-exit" id="fsExit">✕ exit</button>
+  <div class="fs-clock" id="fsClock">60:00</div>
+  <div class="fs-instr" id="fsInstr">boiling</div>
+  <div class="fs-sub" id="fsSub"></div>
 </div>
 
 <div class="modal" id="listModal" hidden>
@@ -813,7 +836,7 @@ const BEERS=[
 
 /* ---- state ---- */
 function cloneBeer(b){ return JSON.parse(JSON.stringify(b)); }
-const APP_VERSION = '2.1.0';
+const APP_VERSION = '2.3.0';
 let beer = cloneBeer(BEERS[0]), vol = 20, mode = 'grain';
 const BASE = 20;
 const LME_FACTOR = 0.75; // 1 kg mashed base grain ≈ 0.75 kg liquid malt extract
@@ -859,13 +882,44 @@ function packsNum(){
 }
 function packsFor(){ const p=packsNum(); return p===1 ? '1 pack' : p+' packs'; }
 function totalGrainKg(){ return beer.grains.filter(g=>g.mash!==false).reduce((s,g)=>s+g.kg,0); }
+// ---- calc engine: OG/FG/ABV/IBU/SRM computed from the actual grist ----
+// pot = extract potential (gravity points·L per kg at 100%); col = colour in °Lovibond
+const GRAIN_DB={
+  pilsner:{pot:300,col:1.7}, pale:{pot:300,col:3}, munich:{pot:295,col:9}, vienna:{pot:298,col:4},
+  wheat:{pot:305,col:2}, maize:{pot:290,col:1.3}, oats:{pot:285,col:1.3}, flakedwheat:{pot:300,col:2},
+  flakedbarley:{pot:285,col:2.2}, crystal:{pot:255,col:55}, choc:{pot:255,col:300}, roast:{pot:250,col:430},
+  darkmalt:{pot:255,col:370}, sugar:{pot:384,col:0}
+};
+function extractPC(){ if(hasDarkExtract()) return {pot:320,col:50}; const s=+beer.srm; return s<=6?{pot:320,col:4}:s<=14?{pot:320,col:18}:{pot:320,col:45}; }
+function yeastAtt(){ const p=yeastProfile(beer.yeast); const A={lager:.80,kolsch:.78,ale:.77,english:.72,belgian:.82,saison:.86,hefe:.76,wheat:.76,hazy:.75,kveik:.80}; return A[p.key]||.75; }
+const MASH_EFF=0.68;
+function calcStats(){
+  const k=vol/BASE, V=vol;
+  let ogPts=0, mcu=0;
+  if(mode==='extract'){
+    const lme=lmeKg()*k, ep=extractPC();
+    ogPts+=lme*ep.pot/V; mcu+=lme*2.2046*ep.col;
+    steepGrains().forEach(g=>{ const d=GRAIN_DB[grainToken(g.n)]||{pot:255,col:60}; ogPts+=g.kg*k*d.pot*0.5/V; mcu+=g.kg*k*2.2046*d.col; });
+    maizeGrains().forEach(g=>{ const d=GRAIN_DB.maize; ogPts+=g.kg*k*d.pot*MASH_EFF/V; mcu+=g.kg*k*2.2046*d.col; });
+    extras().forEach(g=>{ const d=GRAIN_DB[grainToken(g.n)]||{pot:384,col:0}; ogPts+=g.kg*k*d.pot/V; mcu+=g.kg*k*2.2046*d.col; });
+  } else {
+    beer.grains.forEach(g=>{ const tok=grainToken(g.n), d=GRAIN_DB[tok]||{pot:300,col:5}; const eff=role(g)==='sugar'?1:MASH_EFF; ogPts+=g.kg*k*d.pot*eff/V; mcu+=g.kg*k*2.2046*d.col; });
+  }
+  const og=1+ogPts/1000;
+  const fg=1+(og-1)*(1-yeastAtt());
+  const abv=(og-fg)*131.25;
+  let ibu=0; beer.hops.forEach(h=>{ if(typeof h.t==='number'&&h.t>0) ibu+=hopIBU(h,k); });
+  const srm=Math.min(40,1.4922*Math.pow(Math.max(0.01,mcu/(V*0.264172)),0.6859));
+  return {og:og.toFixed(3), fg:fg.toFixed(3), abv:abv.toFixed(1)+'%', ibu:Math.round(ibu), srm:Math.max(1,Math.round(srm)),
+          ogN:og, fgN:fg, abvN:abv, ibuN:Math.round(ibu), srmN:Math.max(1,Math.round(srm))};
+}
 // rough per-addition IBU (simplified Tinseth). Alpha estimated by hop family.
 const HOP_ALPHA={saaz:3.5,hallertau:4,tettnang:4.5,styrian:5,spalt:4,cascade:6,centennial:10,columbus:15,citra:12,mosaic:12,simcoe:13,amarillo:9,chinook:13,ekg:5,fuggle:4.5,challenger:7.5,nelson:12,galaxy:14,motueka:7,riwaka:6};
 function hopIBU(h,k){
   const vars=hopVarsFromName(h.n); const a=(vars.length?HOP_ALPHA[vars[0]]:null)||8;
-  const og=parseFloat(beer.og)||1.05, V=vol; // finished volume approximation
+  const og=parseFloat(beer.og)||1.05, V=vol;
   const grams=h.g*k;
-  const util=(1.65*Math.pow(0.000125,og-1))*((1-Math.exp(-0.04*h.t))/4.15);
+  const util=(1.65*Math.pow(0.000125,og-1))*((1-Math.exp(-0.04*h.t))/2.95);
   const ibu=(grams*a/100*util*1000)/V;
   return Math.round(ibu);
 }
@@ -900,10 +954,16 @@ function renderHeader(){
   if(typeof updateAutoStats==='function') updateAutoStats();
 }
 function renderStats(){
-  document.getElementById('stats').innerHTML =
-    [['OG',beer.og],['FG',beer.fg],['ABV',beer.abv],['IBU',beer.ibu],['SRM',beer.srm]]
-    .map(([l,n])=>`<div class="stat"><div class="n">${n}</div><div class="l">${l}</div></div>`).join('');
+  const c=calcStats();
+  const tgt={og:parseFloat(beer.og),fg:parseFloat(beer.fg),abv:parseFloat(beer.abv),ibu:+beer.ibu,srm:+beer.srm};
+  const rows=[['OG',c.og,c.ogN,tgt.og,0.004],['FG',c.fg,c.fgN,tgt.fg,0.004],['ABV',c.abv,c.abvN,tgt.abv,0.6],['IBU',c.ibuN,c.ibuN,tgt.ibu,6],['SRM',c.srmN,c.srmN,tgt.srm,4]];
+  document.getElementById('stats').innerHTML = rows.map(([l,disp,val,t,tol])=>{
+    const off = Math.abs(val-t) > tol;
+    const arrow = off ? (val>t?'<span class="stat-off">▲</span>':'<span class="stat-off">▼</span>') : '';
+    return `<div class="stat"><div class="n">${disp}${arrow}</div><div class="l">${l}</div></div>`;
+  }).join('');
 }
+function liveStats(){ if(typeof renderStats==='function') renderStats(); }
 function renderIngredients(){
   const k = vol/BASE;
   const banner = beer.fitted ? `<div class="fit-note">🧰 Adapted to your cupboard — swapped or dropped what you didn't have (look for “your sub” tags). Tap <b>Edit / use what I have</b> to fine-tune, or reload the style from the picker for the original.</div>` : '';
@@ -975,7 +1035,7 @@ function toggleEdit(on){
   ['grains','hops','waterNote','yeastRow'].forEach(id=>{ const el=document.getElementById(id); if(el) el.style.display=on?'none':''; });
   const t=document.getElementById('editToggle');
   t.textContent = on?'✕ Close editor':'✎ Edit / use what I have'; t.classList.toggle('gold',on);
-  if(on) renderEdit(); else { renderIngredients(); buildHopSched(); renderTimer(); renderFerment(); renderWalk(); }
+  if(on) renderEdit(); else { renderIngredients(); buildHopSched(); renderTimer(); renderFerment(); renderWalk(); liveStats(); }
 }
 function exitEditUI(){ editing=false; const ep=document.getElementById('editPanel'); if(ep) ep.hidden=true; ['grains','hops','waterNote','yeastRow'].forEach(id=>{ const el=document.getElementById(id); if(el) el.style.display=''; }); const t=document.getElementById('editToggle'); if(t){ t.textContent='✎ Edit / use what I have'; t.classList.remove('gold'); } }
 document.getElementById('editToggle').addEventListener('click',()=>toggleEdit(!editing));
@@ -988,8 +1048,8 @@ function edUpdate(e){
     if(f==='t'){ const n=parseFloat(val); val=(val.trim()!=='' && !isNaN(n) && /^\s*-?\d/.test(val)) ? n : val.trim(); }
     if(kind==='g') beer.grains[i][f]=val; else beer.hops[i][f]=val;
     if(kind==='h'){ buildHopSched(); renderTimer(); }
-    renderWalk();
-  } else if(e.target.id==='edYeast'){ beer.yeast=e.target.value; renderFerment(); renderWalk(); }
+    renderWalk(); liveStats();
+  } else if(e.target.id==='edYeast'){ beer.yeast=e.target.value; renderFerment(); renderWalk(); liveStats(); }
   else if(e.target.id==='edPacks'){ const v=parseInt(e.target.value); beer.packs=(isNaN(v)||v<1)?null:v; renderWalk(); }
 }
 const editPanel=document.getElementById('editPanel');
@@ -1243,6 +1303,7 @@ function renderTimer(){
     }
   }
   if(!dragging) setKnob(beer.boil - remaining/60);
+  if(typeof updateFS==='function') updateFS();
 }
 function tick(){
   remaining = Math.max(0, Math.round((endAt - Date.now())/1000));
@@ -1274,6 +1335,31 @@ document.getElementById('hopSched').addEventListener('click',e=>{ const line=e.t
 // resync display when returning to the app
 document.addEventListener('visibilitychange',()=>{ if(!document.hidden){ if(timer!==null) tick(); if(chillT.iv) chillTick(); } });
 window.addEventListener('focus',()=>{ if(timer!==null) tick(); if(chillT.iv) chillTick(); });
+
+/* ---- fullscreen brew mode: giant clock + hop cue during the boil ---- */
+function updateFS(){
+  const fs=document.getElementById('brewFS'); if(!fs||fs.hidden) return;
+  document.getElementById('fsClock').textContent = clock.textContent;
+  const minsLeft=remaining/60;
+  const lines=[...document.querySelectorAll('.hop-line')].map(l=>{
+    const nm=l.querySelector('.hop-name'); return {at:+l.dataset.at, txt:nm?nm.textContent:l.textContent.trim()};
+  });
+  const instr=document.getElementById('fsInstr'), sub=document.getElementById('fsSub');
+  const nowLine=lines.find(l=>minsLeft<=l.at && minsLeft>l.at-0.5 && l.at>0);
+  const upcoming=lines.filter(l=>l.at>0 && l.at<minsLeft).sort((a,b)=>b.at-a.at)[0];
+  if(remaining<=0){ instr.innerHTML='FLAME OUT 🍻'; sub.textContent='chill & transfer'; fs.classList.add('flash'); }
+  else if(nowLine){ instr.innerHTML='ADD<br><b>'+nowLine.txt+'</b>'; sub.textContent='NOW'; fs.classList.add('flash'); }
+  else if(upcoming){ instr.innerHTML='next<br><b>'+upcoming.txt+'</b>'; sub.textContent='in '+Math.max(1,Math.ceil(minsLeft-upcoming.at))+' min'; fs.classList.remove('flash'); }
+  else { instr.textContent='boiling'; sub.textContent=''; fs.classList.remove('flash'); }
+}
+document.getElementById('fsOpen').addEventListener('click',()=>{
+  const fs=document.getElementById('brewFS'); fs.hidden=false; updateFS();
+  if(fs.requestFullscreen) fs.requestFullscreen().catch(()=>{});
+});
+document.getElementById('fsExit').addEventListener('click',()=>{
+  document.getElementById('brewFS').hidden=true;
+  if(document.fullscreenElement && document.exitFullscreen) document.exitFullscreen().catch(()=>{});
+});
 
 /* ---- Brew wizard: "what do you want to brew today?" → vibe → ingredients → proposals ---- */
 // classify each beer into vibe tags for the wizard
@@ -1626,7 +1712,7 @@ document.getElementById('modeToggle').addEventListener('click',e=>{
   const b=e.target.closest('button'); if(!b) return;
   mode=b.dataset.mode;
   document.querySelectorAll('#modeToggle button').forEach(x=>x.classList.toggle('on',x===b));
-  renderIngredients(); renderMash(); renderWalk();
+  renderIngredients(); renderMash(); renderWalk(); liveStats();
 });
 
 function renderAll(){
@@ -2040,9 +2126,35 @@ function updateLogHint(){
     ? 'Saved on this device. Tap Export to back it up or move it elsewhere.'
     : 'Heads up: this preview blocks storage, so entries last only for this session. In the published/installed app they’re saved automatically — use Export to keep a copy.';
 }
+function allReadings(keys){
+  const out=[];
+  for(const e of brewLog){ if(e.type!=='data') continue; if(e.beer && e.beer!==beer.name) continue; const lab=(e.label||'').toLowerCase(); if(keys.some(k=>lab.includes(k))){ const v=parseFloat(String(e.value).replace(',','.')); if(!isNaN(v)) out.push({v,ts:e.ts||0}); } }
+  return out.sort((a,b)=>a.ts-b.ts);
+}
+function gravitySVG(){
+  // collect all gravity-like readings (OG, FG, or plain "gravity"/"SG")
+  const pts=allReadings(['og','fg','gravity','sg','original','final']);
+  if(pts.length<2) return '';
+  const vals=pts.map(p=>p.v).filter(v=>v>0.98&&v<1.2);
+  if(vals.length<2) return '';
+  const t0=pts[0].ts, t1=pts[pts.length-1].ts, span=Math.max(1,t1-t0);
+  const min=Math.min(...vals,1.0)-0.002, max=Math.max(...vals)+0.002;
+  const W=300,H=120,pad=8;
+  const x=p=>pad+((p.ts-t0)/span)*(W-2*pad);
+  const y=v=>pad+(1-(v-min)/(max-min))*(H-2*pad);
+  const line=pts.map((p,i)=>`${i?'L':'M'}${x(p).toFixed(1)},${y(p.v).toFixed(1)}`).join(' ');
+  const area=`M${x(pts[0]).toFixed(1)},${(H-pad).toFixed(1)} `+pts.map(p=>`L${x(p).toFixed(1)},${y(p.v).toFixed(1)}`).join(' ')+` L${x(pts[pts.length-1]).toFixed(1)},${(H-pad).toFixed(1)} Z`;
+  const dots=pts.map(p=>`<circle cx="${x(p).toFixed(1)}" cy="${y(p.v).toFixed(1)}" r="3" fill="var(--gold-bright)"/>`).join('');
+  const first=pts[0].v.toFixed(3), last=pts[pts.length-1].v.toFixed(3);
+  const s=computedStats();
+  const cap=s?`<div class="grav-cap">OG ${first} → ${last} · ABV ≈ ${s.abv} · attenuation ≈ ${s.att}</div>`:`<div class="grav-cap">${first} → ${last}</div>`;
+  return `<div class="grav-card"><div class="grav-title">📈 Gravity</div><svg viewBox="0 0 ${W} ${H}" class="grav-svg" preserveAspectRatio="none"><path d="${area}" fill="rgba(232,163,23,.12)"/><path d="${line}" fill="none" stroke="var(--gold)" stroke-width="2"/>${dots}</svg>${cap}</div>`;
+}
 function renderLog(){
   const list=document.getElementById('logList'); if(!list) return;
   if(typeof updateAutoStats==='function') updateAutoStats();
+  const graph=gravitySVG();
+  const graphEl=document.getElementById('gravGraph'); if(graphEl) graphEl.innerHTML=graph;
   if(!brewLog.length){ list.innerHTML='<div class="log-empty">No entries yet — add a reading or a note.</div>'; return; }
   list.innerHTML=brewLog.map((e,i)=>{
     const body=e.type==='data' ? `<b>${lEsc(e.label||'reading')}:</b> ${lEsc(e.value||'')}` : lEsc(e.text||'');
