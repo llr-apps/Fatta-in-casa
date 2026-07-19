@@ -388,13 +388,14 @@
       <span class="batch-label">Volume in fermenter</span>
       <span class="batch-val"><span id="vol">20</span><small> L</small></span>
     </div>
-    <input type="range" id="slider" min="5" max="50" step="1" value="20">
+    <input type="range" id="slider" min="5" max="60" step="1" value="20">
     <div class="presets" id="presets">
       <button class="preset" data-v="10">10 L</button>
       <button class="preset on" data-v="20">20 L</button>
       <button class="preset" data-v="23">23 L</button>
       <button class="preset" data-v="30">30 L</button>
     </div>
+    <button class="mini-btn" id="doubleBatch" style="margin-top:8px;width:100%">🍺🍺 Double batch (×2)</button>
   </div>
 
   <div class="stats" id="stats"></div>
@@ -827,13 +828,33 @@ const BEERS=[
   yeast:'W-34/70',ynote:'Clean lager strain — ferment 10–12 °C, then lager 2+ weeks (or US-05 if you can\u2019t lager)',
   water:'Soft, low mineral — a pinch of gypsum keeps the finish crisp.',
   tip:"Rice, like corn, is the classic light-lager adjunct — it thins the body and dries the finish without adding flavour, giving that clean San Miguel crispness. Flaked rice is pre-gelatinized so it goes straight in the mash (all-grain); for extract, it needs a small partial mash with base malt. Ferment cold and lager at least 2 weeks for a truly clean, pale result.",
-  mash:M.lagerSacc,boil:60,ferm:F.lager}
+  mash:M.lagerSacc,boil:60,ferm:F.lager},
+
+ {id:'hoppyamber',name:'Hoppy Amber (dark-extract friendly)',style:'American Amber/Red Ale · ~16 SRM, deep amber',desc:"A big American-hopped amber — malty caramel backbone under a huge citrus-pine-tropical hop aroma from a late boil, an 80 °C hop stand and a generous dry hop. Built to work great with dark malt extract (like Meridian): switch to Extract mode and tick Dark malt extract to brew it from jars. Not a pale ale — the amber colour and toffee depth are the point.",
+  og:'1.048',fg:'1.011',abv:'5.0%',ibu:'40',srm:'16',type:'ale',pitch:'18–20 °C',
+  grains:[{n:'Pale / Maris Otter',note:'base (→ dark LME in extract mode)',kg:3.2},{n:'Munich malt',note:'malt depth',kg:0.5},{n:'Crystal 60',note:'caramel & amber colour',kg:0.6},{n:'Chocolate malt',note:'a touch — colour & depth',kg:0.1},{n:'Dextrose',note:'~300 g — dries the finish & lifts ABV',kg:0.3,mash:false}],
+  hops:[
+    {n:'Chinook',tag:'bitter',t:60,g:10},
+    {n:'Centennial',tag:'flavor',t:15,g:15},
+    {n:'Cascade',tag:'flavor',t:10,g:20},
+    {n:'Amarillo',tag:'aroma',t:5,g:20},
+    {n:'Simcoe',tag:'whirlpool',t:'whirlpool',g:20},
+    {n:'Cascade',tag:'whirlpool',t:'whirlpool',g:20},
+    {n:'Cascade',tag:'dry hop',t:'dry hop',g:30},
+    {n:'Amarillo',tag:'dry hop',t:'dry hop',g:30},
+    {n:'Simcoe',tag:'dry hop',t:'dry hop',g:20}
+  ],
+  yeast:'Coopers ale (or US-05)',ynote:'Use 2 packs at 20 L; ferment 18–20 °C. US-05 is cleaner, Coopers adds a light fruitiness',
+  water:'Balanced; a little sulfate sharpens the hops.',
+  optional:'Extract build: switch to Extract mode and tick Dark malt extract — ~7 Meridian jars (2.6 kg) plus the 300 g dextrose lands the same beer.',
+  tip:"Hop-forward tips: (1) Whirlpool/hop stand — after flame-out, cool to ~80 °C, add the whirlpool hops, cover and steep 20 min for big aroma with almost no added bitterness. (2) Dark-extract build: switch to Extract mode and tick Dark malt extract; the app shows the Meridian jar count and steeps the Crystal/Chocolate. Late-extract trick: hold back a third of the extract until the last 15 min for lighter colour and better hop aroma. (3) Ferment 5–7 days before dry-hopping (not 3) so fermentation is done, then dry hop 3 days and package. (4) Best fresh — hop aroma fades within weeks.",
+  mash:M.single67,boil:60,ferm:F.ale}
 ];
 
 /* ---- state ---- */
 function cloneBeer(b){ return JSON.parse(JSON.stringify(b)); }
-const APP_VERSION = '2.4.0';
-let beer = cloneBeer(BEERS[0]), vol = 20, mode = 'grain';
+const APP_VERSION = '2.5.1';
+let beer = cloneBeer(BEERS[0]), baseBeer = BEERS[0], vol = 20, mode = 'grain';
 const BASE = 20;
 const LME_FACTOR = 0.75; // 1 kg mashed base grain ≈ 0.75 kg liquid malt extract
 const fmtKg = kg => kg>=1 ? kg.toFixed(2)+' kg' : Math.round(kg*1000)+' g';
@@ -1715,9 +1736,16 @@ function setVol(v){
   document.querySelectorAll('.preset').forEach(b=>b.classList.toggle('on',+b.dataset.v===v));
   renderIngredients(); renderWalk(); buildHopSched(); renderTimer();
   if(typeof renderCarb==='function') renderCarb();
+  if(typeof liveStats==='function') liveStats();
 }
-slider.addEventListener('input',e=>setVol(+e.target.value));
-document.getElementById('presets').addEventListener('click',e=>{ const b=e.target.closest('.preset'); if(!b)return; slider.value=b.dataset.v; setVol(+b.dataset.v); });
+let doubled=false, singleVol=20;
+function setDoubleUI(){ const b=document.getElementById('doubleBatch'); if(!b)return; b.textContent=doubled?'🍺 Back to single batch':'🍺🍺 Double batch (×2)'; b.classList.toggle('gold',doubled); }
+slider.addEventListener('input',e=>{ doubled=false; setDoubleUI(); setVol(+e.target.value); });
+document.getElementById('presets').addEventListener('click',e=>{ const b=e.target.closest('.preset'); if(!b)return; doubled=false; setDoubleUI(); slider.value=b.dataset.v; setVol(+b.dataset.v); });
+document.getElementById('doubleBatch').addEventListener('click',()=>{
+  if(!doubled){ singleVol=vol; const dv=Math.min(+slider.max, vol*2); doubled=true; setDoubleUI(); slider.value=dv; setVol(dv); }
+  else { doubled=false; setDoubleUI(); slider.value=singleVol; setVol(singleVol); }
+});
 
 document.getElementById('modeToggle').addEventListener('click',e=>{
   const b=e.target.closest('button'); if(!b) return;
