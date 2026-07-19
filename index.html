@@ -56,12 +56,6 @@
   .suggest-head{width:100%;text-align:left;background:rgba(122,154,74,.14);border:none;color:var(--saaz-text);font-family:'Oswald',sans-serif;font-size:15px;letter-spacing:.04em;text-transform:uppercase;padding:14px 16px;cursor:pointer;display:flex;justify-content:space-between;align-items:center}
   .suggest-body{padding:4px 16px 16px}
   .suggest-hint{font-size:12.5px;color:var(--dim);margin:8px 0 12px}
-  .photo-add{display:flex;align-items:center;gap:10px;margin-bottom:14px;flex-wrap:wrap}
-  .photo-btn{display:inline-flex;align-items:center;gap:7px;font-family:'Oswald',sans-serif;font-size:14px;letter-spacing:.03em;text-transform:uppercase;background:var(--copper);color:#fff;border:none;border-radius:12px;padding:11px 16px;cursor:pointer}
-  .photo-btn:active{filter:brightness(1.1)}
-  .photo-status{font-size:12.5px;color:var(--dim);flex:1;min-width:140px}
-  .photo-status.ok{color:var(--saaz-text)}
-  .photo-status.err{color:var(--copper-text)}
   .chip-group{margin-bottom:12px}
   .chip-group h4{font-family:'Oswald',sans-serif;font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--dim);margin-bottom:7px}
   .chips{display:flex;flex-wrap:wrap;gap:7px}
@@ -379,13 +373,6 @@
     <button class="suggest-head" id="suggestToggle">🔍 Let's cook with what I have <span id="suggestCaret">▴</span></button>
     <div class="suggest-body" id="suggestBody">
       <p class="suggest-hint">Tap what you've got in the cupboard — I'll rank the closest styles and show what you're still missing.</p>
-      <div class="photo-add">
-        <button class="photo-btn" id="cameraBtn">📷 Take photo</button>
-        <button class="photo-btn" id="uploadBtn" style="background:var(--gold);color:var(--bg)">🖼️ Upload photo</button>
-        <input type="file" accept="image/*" capture="environment" multiple id="cameraInput" hidden>
-        <input type="file" accept="image/*" multiple id="uploadInput" hidden>
-        <span class="photo-status" id="photoStatus">Snap a new photo or upload one from your phone — I'll identify the ingredient.</span>
-      </div>
       <div id="chipGroups"></div>
       <div class="results" id="suggestResults"></div>
     </div>
@@ -621,7 +608,6 @@
 
 <script>
 // === CONFIG: path to your deployed recognition function (works on Cloudflare Pages / Netlify out of the box) ===
-const API_ENDPOINT = "/api/identify";
 
 /* ---- shared templates (at 20 L base) ---- */
 const M = {
@@ -832,12 +818,21 @@ const BEERS=[
   yeast:'SafAle US-05',ynote:'Use 3 packs minimum — high gravity needs a big pitch; W-34/70 can stall above 8%',
   water:'Soft, low mineral.',
   tip:'Strong lager tips: (1) Pitch 3 packs and oxygenate well — at OG 1.090 underpitching stalls fermentation and leaves sweetness. (2) Add dextrose in two doses 48 h apart to avoid osmotic shock. (3) Ferment at 18–20 °C for clean results, then cold-crash and lager 1 week before kegging. (4) This beer improves significantly with 2–3 weeks conditioning — resist tapping early.',
-  mash:M.single67,boil:60,ferm:F.big}
+  mash:M.single67,boil:60,ferm:F.big},
+
+ {id:'sanmiguel',name:'San Miguel Pale Pilsen (clone)',style:'Pale Lager · ~4 SRM, pale gold',desc:"Clone of the classic Filipino/Spanish pale lager — light, crisp and clean with a dry finish from flaked rice, a whisper of Munich for colour, and soft German noble hops. Very pale and highly drinkable. Serve ice-cold.",
+  og:'1.045',fg:'1.008',abv:'5.0%',ibu:'15',srm:'4',type:'lager',pitch:'10–12 °C',
+  grains:[{n:'Pilsner malt',note:'base',kg:3.5},{n:'Flaked rice',note:'~18% — light body & dry, clean finish',kg:0.8},{n:'Munich malt',note:'a touch of colour & malt depth',kg:0.1},{n:'Crystal 15L',note:'faint sweetness (optional)',kg:0.15}],
+  hops:[{n:'Tettnang',tag:'bitter',t:30,g:15},{n:'Tettnang',tag:'aroma',t:15,g:15}],
+  yeast:'W-34/70',ynote:'Clean lager strain — ferment 10–12 °C, then lager 2+ weeks (or US-05 if you can\u2019t lager)',
+  water:'Soft, low mineral — a pinch of gypsum keeps the finish crisp.',
+  tip:"Rice, like corn, is the classic light-lager adjunct — it thins the body and dries the finish without adding flavour, giving that clean San Miguel crispness. Flaked rice is pre-gelatinized so it goes straight in the mash (all-grain); for extract, it needs a small partial mash with base malt. Ferment cold and lager at least 2 weeks for a truly clean, pale result.",
+  mash:M.lagerSacc,boil:60,ferm:F.lager}
 ];
 
 /* ---- state ---- */
 function cloneBeer(b){ return JSON.parse(JSON.stringify(b)); }
-const APP_VERSION = '2.3.3';
+const APP_VERSION = '2.4.0';
 let beer = cloneBeer(BEERS[0]), vol = 20, mode = 'grain';
 const BASE = 20;
 const LME_FACTOR = 0.75; // 1 kg mashed base grain ≈ 0.75 kg liquid malt extract
@@ -865,13 +860,14 @@ function darkExtractWarning(){
   if(s<=6) return `<div class="fit-note" style="border-color:var(--copper)">⚠ <b>Dark extract warning:</b> you have dark malt extract (e.g. Meridian, ~370 g/jar). This style targets a pale/straw colour (${beer.srm} SRM) but dark extract will push it to amber/brown and add caramel/toffee notes. The beer will still be drinkable — just not true to style. For a proper lager/pils, swap to light LME. For today: styles like Brown Ale, Porter, ESB, or Amber work well with dark extract.</div>`;
   return '';
 }
-function lmeKg(){ // base + adjunct grains (except maize, which is cereal-mashed) converted to extract
-  return beer.grains.filter(g=>['base','adjunct'].includes(role(g)) && grainToken(g.n)!=='maize').reduce((s,g)=>s+g.kg,0) * LME_FACTOR;
+function lmeKg(){ // base + adjunct grains (except raw starch like maize/rice, which is cereal-mashed) converted to extract
+  return beer.grains.filter(g=>['base','adjunct'].includes(role(g)) && !['maize','rice'].includes(grainToken(g.n))).reduce((s,g)=>s+g.kg,0) * LME_FACTOR;
 }
 function steepGrains(){ return beer.grains.filter(g=>role(g)==='steep'); }
 function extras(){ return beer.grains.filter(g=>['sugar','spice'].includes(role(g))); }
 function maizeGrains(b){ b=b||beer; return b.grains.filter(g=>grainToken(g.n)==='maize'); }
-function hasFlaked(){ return beer.grains.some(g=>role(g)==='adjunct' && grainToken(g.n)!=='maize'); }
+function rawStarch(b){ b=b||beer; return b.grains.filter(g=>['maize','rice'].includes(grainToken(g.n))); }
+function hasFlaked(){ return beer.grains.some(g=>role(g)==='adjunct' && !['maize','rice'].includes(grainToken(g.n))); }
 
 function packsNum(){
   if(beer.packs!=null){ const v=parseInt(beer.packs); if(!isNaN(v)&&v>=1) return v; }
@@ -888,7 +884,7 @@ function totalGrainKg(){ return beer.grains.filter(g=>g.mash!==false).reduce((s,
 const GRAIN_DB={
   pilsner:{pot:300,col:1.7}, pale:{pot:300,col:3}, munich:{pot:295,col:9}, vienna:{pot:298,col:4},
   wheat:{pot:305,col:2}, maize:{pot:290,col:1.3}, oats:{pot:285,col:1.3}, flakedwheat:{pot:300,col:2},
-  flakedbarley:{pot:285,col:2.2}, crystal:{pot:255,col:55}, choc:{pot:255,col:300}, roast:{pot:250,col:430},
+  flakedbarley:{pot:285,col:2.2}, rice:{pot:295,col:0.6}, crystal:{pot:255,col:55}, choc:{pot:255,col:300}, roast:{pot:250,col:430},
   darkmalt:{pot:255,col:370}, sugar:{pot:384,col:0}
 };
 function extractPC(){ if(hasDarkExtract()) return {pot:320,col:50}; const s=+beer.srm; return s<=6?{pot:320,col:4}:s<=14?{pot:320,col:18}:{pot:320,col:45}; }
@@ -901,7 +897,7 @@ function calcStats(){
     const lme=lmeKg()*k, ep=extractPC();
     ogPts+=lme*ep.pot/V; mcu+=lme*2.2046*ep.col;
     steepGrains().forEach(g=>{ const d=GRAIN_DB[grainToken(g.n)]||{pot:255,col:60}; ogPts+=g.kg*k*d.pot*0.5/V; mcu+=g.kg*k*2.2046*d.col; });
-    maizeGrains().forEach(g=>{ const d=GRAIN_DB.maize; ogPts+=g.kg*k*d.pot*MASH_EFF/V; mcu+=g.kg*k*2.2046*d.col; });
+    rawStarch().forEach(g=>{ const d=GRAIN_DB[grainToken(g.n)]||GRAIN_DB.maize; ogPts+=g.kg*k*d.pot*MASH_EFF/V; mcu+=g.kg*k*2.2046*d.col; });
     extras().forEach(g=>{ const d=GRAIN_DB[grainToken(g.n)]||{pot:384,col:0}; ogPts+=g.kg*k*d.pot/V; mcu+=g.kg*k*2.2046*d.col; });
   } else {
     beer.grains.forEach(g=>{ const tok=grainToken(g.n), d=GRAIN_DB[tok]||{pot:300,col:5}; const eff=role(g)==='sugar'?1:MASH_EFF; ogPts+=g.kg*k*d.pot*eff/V; mcu+=g.kg*k*2.2046*d.col; });
@@ -971,8 +967,9 @@ function renderIngredients(){
   if(mode==='extract'){
     let rows = darkExtractWarning();
     rows += `<div class="row"><div class="name">${lmeType()}<small>replaces the mashed barley — stir in off the heat</small></div><div class="amt">${fmtKg(lmeKg()*k)}</div></div>`;
-    maizeGrains().forEach(g=>{
-      rows += `<div class="row"><div class="name">${g.n} <span class="tag">partial mash</span><small>corn needs a small partial mash with base malt to convert — or omit it</small></div><div class="amt">${fmtKg(g.kg*k)}</div></div>`;
+    rawStarch().forEach(g=>{
+      const what = grainToken(g.n)==='rice' ? 'rice' : 'corn';
+      rows += `<div class="row"><div class="name">${g.n} <span class="tag">partial mash</span><small>${what} needs a small partial mash with base malt to convert — or omit it</small></div><div class="amt">${fmtKg(g.kg*k)}</div></div>`;
     });
     steepGrains().forEach(g=>{
       rows += `<div class="row"><div class="name">${g.n} <span class="tag">steep</span><small>${g.note||'specialty grain'}</small></div><div class="amt">${fmtKg(g.kg*k)}</div></div>`;
@@ -1004,7 +1001,7 @@ function renderIngredients(){
     else txt += `Heat about <b style="color:var(--gold-bright)">${fmtL(w.preBoil)}</b> of water to your boil volume and stir in the ${lmeType()} off the heat — no grains to steep. `;
     if(hasDarkExtract()){ const jars=Math.ceil((lmeKg()*k*1000)/370); txt+=` <b>Meridian jars needed: ${jars} × 370 g</b> (${(lmeKg()*k).toFixed(2)} kg total).`; }
     txt += `You'll boil off ${fmtL(w.boilOff)}; after chilling, top up with cool, clean water to <b>${vol} L</b> in the fermenter (boiled a smaller, partial volume? just add the rest cold at the end).`;
-    if(maizeGrains().length) txt += ` The maize needs its own small partial mash (see the steps) — plain extract can't convert corn.`;
+    if(rawStarch().length){ const has=rawStarch().map(g=>grainToken(g.n)); const what=has.includes('rice')&&has.includes('maize')?'corn and rice':has.includes('rice')?'rice':'corn'; txt += ` The ${what} needs its own small partial mash (see the steps) — plain extract can't convert raw ${what}.`; }
     else if(hasFlaked()) txt += ` This recipe has flaked/unmalted grain that really wants mashing — the LME approximates it, but a small partial mash gets closer.`;
     document.getElementById('waterNote').innerHTML = txt;
   } else {
@@ -1111,10 +1108,11 @@ function renderMash(){
     document.getElementById('procHead').textContent = 'Steep & extract';
     const steeps = steepGrains();
     let steps = [];
-    const mz = maizeGrains();
+    const mz = rawStarch();
     if(mz.length){
       const list = mz.map(g=>`${g.n} (${fmtKg(g.kg*k)})`).join(' + ');
-      steps.push({t:'corn',n:'Maize: small partial mash',d:`Corn has no enzymes, so plain extract can\u2019t turn it into sugar. Gelatinize ${list} (raw polenta: rest 10 min at 67 °C, then boil 20 min, stirring; flaked maize: skip the boil), then mash it with ~500 g Pilsner malt at ~67 °C for 30 min so it converts. Strain and add the liquid to the kettle. Thermomix: combine corn + 500 g malt + water (≤⅔ bowl), 67 °C / 30 min / speed 1 reverse (with a 20-min Varoma-temp boil first for raw polenta), then strain. Short on time? Leave the corn out — the LME still makes the beer, just a little less corn-crisp.`,m:'~45'});
+      const kinds=mz.map(g=>grainToken(g.n)); const what=kinds.includes('rice')&&kinds.includes('maize')?'corn/rice':kinds.includes('rice')?'rice':'corn';
+      steps.push({t:'corn',n:`${what==='rice'?'Rice':what==='corn'?'Maize':'Corn/rice'}: small partial mash`,d:`Raw ${what} has no enzymes, so plain extract can\u2019t turn it into sugar. Gelatinize ${list} (raw polenta/rice: rest 10 min at 67 °C, then boil 20 min, stirring; pre-flaked: skip the boil), then mash it with ~500 g Pilsner malt at ~67 °C for 30 min so it converts. Strain and add the liquid to the kettle. Thermomix: combine ${what} + 500 g malt + water (≤⅔ bowl), 67 °C / 30 min / speed 1 reverse (with a 20-min Varoma-temp boil first for raw grain), then strain. Short on time? Leave it out — the LME still makes the beer, just a little less crisp.`,m:'~45'});
     }
     if(steeps.length){
       const list = steeps.map(g=>`${g.n} (${fmtKg(g.kg*k)})`).join(' + ');
@@ -1237,10 +1235,11 @@ function renderWalk(){
       ['Pitch yeast',`Add your <b>${packsFor()}</b> of yeast${beer.type==='lager'||parseFloat(beer.og)>=1.07?' from a healthy starter':''}. Reading should be near <b>${beer.og}</b>.`],
       ['Ferment & package',`Follow section 4: ${beer.type==='lager'?'cold primary, diacetyl rest, then weeks of lagering':'ferment out, condition, then package'}. Then carbonate.`]
     ];
-    const mz=maizeGrains();
+    const mz=rawStarch();
     if(mz.length){
       const list=mz.map(g=>`${g.n} ${fmtKg(g.kg*k)}`).join(' + ');
-      steps.splice(1,0,['Maize: small partial mash (optional)',`Corn can\u2019t convert in plain extract. Gelatinize <b>${list}</b> (raw polenta: 10 min at 67 °C then boil 20 min; flaked maize: skip the boil), then mash with <b>~500 g Pilsner malt</b> at 67 °C for 30 min, strain, and add the liquid to the kettle. <b>Thermomix:</b> bowl ≤⅔ full, 67 °C / 30 min / speed 1 reverse (raw polenta: a 20-min Varoma-temp boil first), then strain. Short on time? Skip it — the LME still makes the beer.`]);
+      const kinds=mz.map(g=>grainToken(g.n)); const what=kinds.includes('rice')&&kinds.includes('maize')?'corn/rice':kinds.includes('rice')?'rice':'corn';
+      steps.splice(1,0,[`${what==='rice'?'Rice':what==='corn'?'Maize':'Corn/rice'}: small partial mash (optional)`,`Raw ${what} can\u2019t convert in plain extract. Gelatinize <b>${list}</b> (raw polenta/rice: 10 min at 67 °C then boil 20 min; pre-flaked: skip the boil), then mash with <b>~500 g Pilsner malt</b> at 67 °C for 30 min, strain, and add the liquid to the kettle. <b>Thermomix:</b> bowl ≤⅔ full, 67 °C / 30 min / speed 1 reverse (raw grain: a 20-min Varoma-temp boil first), then strain. Short on time? Skip it — the LME still makes the beer.`]);
     }
   } else {
     const w=waterVols();
@@ -1569,7 +1568,7 @@ document.getElementById('carbVols').addEventListener('input',e=>{ const v=parseF
    Persists in localStorage. Auto-syncs cupboard chips.          */
 const PANTRY_UNITS={
   // fermentables → kg
-  pilsner:'kg',pale:'kg',munich:'kg',vienna:'kg',wheat:'kg',maize:'kg',oats:'kg',flakedwheat:'kg',flakedbarley:'kg',crystal:'kg',choc:'kg',roast:'kg',darkmalt:'kg',sugar:'kg',extract:'kg',darkextract:'kg',
+  pilsner:'kg',pale:'kg',munich:'kg',vienna:'kg',wheat:'kg',maize:'kg',rice:'kg',oats:'kg',flakedwheat:'kg',flakedbarley:'kg',crystal:'kg',choc:'kg',roast:'kg',darkmalt:'kg',sugar:'kg',extract:'kg',darkextract:'kg',
   // hops → g
   saaz:'g',hallertau:'g',tettnang:'g',styrian:'g',spalt:'g',cascade:'g',centennial:'g',columbus:'g',citra:'g',mosaic:'g',simcoe:'g',amarillo:'g',chinook:'g',ekg:'g',fuggle:'g',challenger:'g',nelson:'g',galaxy:'g',motueka:'g',riwaka:'g',
   // yeast → packs
@@ -1738,7 +1737,7 @@ function renderAll(){
 
 /* ---- ingredient matcher ---- */
 const INGREDIENTS=[
-  {g:'Fermentables',items:[['pilsner','Pilsner malt'],['pale','Pale / Maris Otter'],['munich','Munich malt'],['vienna','Vienna malt'],['wheat','Wheat malt'],['maize','Maize / polenta (Bramata, Valsugana)'],['oats','Flaked oats'],['flakedwheat','Flaked/raw wheat'],['flakedbarley','Flaked barley'],['crystal','Crystal / Caramel'],['choc','Chocolate malt'],['roast','Roasted / Black'],['darkmalt','Carafa (dark)'],['sugar','Candi sugar']]},
+  {g:'Fermentables',items:[['pilsner','Pilsner malt'],['pale','Pale / Maris Otter'],['munich','Munich malt'],['vienna','Vienna malt'],['wheat','Wheat malt'],['maize','Maize / polenta (Bramata, Valsugana)'],['rice','Flaked rice'],['oats','Flaked oats'],['flakedwheat','Flaked/raw wheat'],['flakedbarley','Flaked barley'],['crystal','Crystal / Caramel'],['choc','Chocolate malt'],['roast','Roasted / Black'],['darkmalt','Carafa (dark)'],['sugar','Candi sugar']]},
   {g:'Extract',items:[['extract','Malt extract (LME / DME) — light/amber'],['darkextract','Dark malt extract (e.g. Meridian)']]},
   {g:'Hops — noble',items:[['saaz','Saaz'],['hallertau','Hallertau'],['tettnang','Tettnang'],['styrian','Styrian Goldings'],['spalt','Spalt']]},
   {g:'Hops — American',items:[['cascade','Cascade'],['centennial','Centennial'],['columbus','Columbus'],['citra','Citra'],['mosaic','Mosaic'],['simcoe','Simcoe'],['amarillo','Amarillo'],['chinook','Chinook']]},
@@ -1775,6 +1774,7 @@ function grainToken(name){
   if(/munich/.test(n))return'munich';
   if(/vienna/.test(n))return'vienna';
   if(/(flaked|unmalted|raw).*wheat/.test(n))return'flakedwheat';
+  if(/rice/.test(n))return'rice';
   if(/maize|corn|polenta|nostrano/.test(n))return'maize';
   if(/oats/.test(n))return'oats';
   if(/flaked barley/.test(n))return'flakedbarley';
@@ -1818,7 +1818,7 @@ function yeastToken(b){
 }
 function baseToks(b){ return [...new Set(b.grains.filter(g=>['base','adjunct'].includes(role(g))).map(g=>grainToken(g.n)))]; }
 // character-bearing base/adjunct grains worth flagging individually (pilsner/pale are neutral and covered by the base/extract check)
-const CHAR_BASE=['munich','vienna','wheat','oats','flakedwheat','flakedbarley','maize'];
+const CHAR_BASE=['munich','vienna','wheat','oats','flakedwheat','flakedbarley','maize','rice'];
 function charBaseToks(b){ return baseToks(b).filter(t=>CHAR_BASE.includes(t)); }
 function specToks(b){ const s=new Set(); b.grains.forEach(g=>{ const r=role(g); if(r==='steep')s.add(grainToken(g.n)); if(r==='sugar')s.add('sugar'); }); return [...s]; }
 function darkSpec(b){ return b.grains.filter(g=>role(g)==='steep' && ['choc','roast','darkmalt'].includes(grainToken(g.n))); }
@@ -1964,67 +1964,7 @@ function selectToken(tok){
   if(chip) chip.classList.add('on');
   return true;
 }
-function fileToBase64(file){
-  return new Promise((res,rej)=>{ const r=new FileReader(); r.onload=()=>res(r.result.split(',')[1]); r.onerror=()=>rej(new Error('read failed')); r.readAsDataURL(file); });
-}
-async function modelCall(body){
-  // 1) backend proxy — works on a published site once the function + API key are deployed
-  try{
-    const r=await fetch(API_ENDPOINT,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
-    if(r.ok) return await r.json();
-    if(r.status!==404) throw new Error('HTTP '+r.status); // a real backend error — surface it
-  }catch(e){ if(e.message&&e.message.startsWith('HTTP')) throw e; /* 404 / network: try direct */ }
-  // 2) direct call — works inside the claude.ai artifact runtime
-  let r2;
-  try{ r2=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)}); }
-  catch(e){ throw new Error('NETWORK'); }
-  if(!r2.ok) throw new Error('HTTP '+r2.status);
-  return await r2.json();
-}
-async function identify(file){
-  const data=await fileToBase64(file);
-  const tokenList=INGREDIENTS.flatMap(g=>g.items.map(([t,l])=>`${t} = ${l}`)).join('; ');
-  const prompt=`You are identifying ONE homebrewing ingredient from a photo: a malt/grain, hops, yeast, or malt extract. Pick the single closest token from this list. Tokens: ${tokenList}. Respond with ONLY a JSON object and nothing else (no markdown, no prose): {"token":"<token or null>","name":"<short label of what you see>","confidence":"high|medium|low"}. If it isn't a brewing ingredient or you can't tell, use "token":null.`;
-  const body={model:"claude-sonnet-4-6",max_tokens:1000,messages:[
-    {role:"user",content:[
-      {type:"image",source:{type:"base64",media_type:file.type||"image/jpeg",data}},
-      {type:"text",text:prompt}
-    ]}
-  ]};
-  const j=await modelCall(body);
-  let text=(j.content||[]).filter(b=>b.type==="text").map(b=>b.text).join("").replace(/```json|```/g,"").trim();
-  const brace=text.match(/\{[\s\S]*\}/); // pull the JSON object even if wrapped in prose
-  if(brace) text=brace[0];
-  try{ return JSON.parse(text); }
-  catch(e){ throw new Error('PARSE'); }
-}
-const photoStatus=document.getElementById('photoStatus');
-function setStatus(msg,cls){ photoStatus.textContent=msg; photoStatus.className='photo-status'+(cls?' '+cls:''); }
-document.getElementById('cameraBtn').addEventListener('click',()=>document.getElementById('cameraInput').click());
-document.getElementById('uploadBtn').addEventListener('click',()=>document.getElementById('uploadInput').click());
-async function handlePhotos(e){
-  const files=[...e.target.files]; if(!files.length)return;
-  let added=0;
-  for(let i=0;i<files.length;i++){
-    setStatus(`Analyzing photo ${i+1} of ${files.length}…`);
-    try{
-      const r=await identify(files[i]);
-      if(r&&r.token&&selectToken(r.token)){ added++; setStatus(`Added: ${r.name||LABEL[r.token]} ✓`,'ok'); suggest(); }
-      else setStatus(`Couldn't match ${r&&r.name?`"${r.name}"`:'that image'} to a known ingredient — tap a chip instead.`,'err');
-    }catch(err){
-      const m=err.message;
-      if(m==='NETWORK') setStatus("Can't reach the recognition service. If you just deployed, check the function and your ANTHROPIC_API_KEY. Meanwhile, tap the chips to add ingredients manually.",'err');
-      else if(m&&m.startsWith('HTTP')) setStatus(`Model call failed (${m}). Try again, or tap the chips to add ingredients manually.`,'err');
-      else if(m==='PARSE') setStatus("Got a reply but couldn't read it — try a clearer, closer photo of the label.",'err');
-      else setStatus("Photo ID failed: "+m+". Tap the chips to add ingredients manually.",'err');
-      break;
-    }
-  }
-  if(added) setStatus(`Added ${added} ingredient${added>1?'s':''} from photos ✓`,'ok');
-  e.target.value='';
-}
-document.getElementById('cameraInput').addEventListener('change',handlePhotos);
-document.getElementById('uploadInput').addEventListener('change',handlePhotos);
+/* photo ingredient recognition removed */
 
 /* ---- shopping list ---- */
 const CART=[];
