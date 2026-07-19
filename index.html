@@ -239,6 +239,7 @@
   .grav-cap{font-size:11.5px;color:var(--dim);margin-top:6px;text-align:center}
   .stat-off{font-size:9px;color:var(--copper-text);vertical-align:middle;margin-left:2px}
   .brewfs{position:fixed;inset:0;z-index:2000;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:24px}
+  .brewfs[hidden]{display:none}
   .brewfs.flash{animation:fsflash 1s ease-in-out infinite}
   @keyframes fsflash{0%,100%{background:var(--bg)}50%{background:#2a1c0a}}
   .fs-exit{position:absolute;top:20px;right:20px;background:var(--bg2);border:1px solid var(--line);color:var(--foam);border-radius:10px;padding:10px 16px;font-size:14px;cursor:pointer}
@@ -836,7 +837,7 @@ const BEERS=[
 
 /* ---- state ---- */
 function cloneBeer(b){ return JSON.parse(JSON.stringify(b)); }
-const APP_VERSION = '2.3.0';
+const APP_VERSION = '2.3.1';
 let beer = cloneBeer(BEERS[0]), vol = 20, mode = 'grain';
 const BASE = 20;
 const LME_FACTOR = 0.75; // 1 kg mashed base grain ≈ 0.75 kg liquid malt extract
@@ -1340,11 +1341,14 @@ window.addEventListener('focus',()=>{ if(timer!==null) tick(); if(chillT.iv) chi
 function updateFS(){
   const fs=document.getElementById('brewFS'); if(!fs||fs.hidden) return;
   document.getElementById('fsClock').textContent = clock.textContent;
+  const instr=document.getElementById('fsInstr'), sub=document.getElementById('fsSub');
+  const running = timer!==null;
+  const started = running || boilDone || remaining < beer.boil*60;
+  if(!started){ instr.innerHTML='TAP TO<br><b>START THE BOIL</b>'; sub.textContent=''; fs.classList.remove('flash'); return; }
   const minsLeft=remaining/60;
   const lines=[...document.querySelectorAll('.hop-line')].map(l=>{
     const nm=l.querySelector('.hop-name'); return {at:+l.dataset.at, txt:nm?nm.textContent:l.textContent.trim()};
   });
-  const instr=document.getElementById('fsInstr'), sub=document.getElementById('fsSub');
   const nowLine=lines.find(l=>minsLeft<=l.at && minsLeft>l.at-0.5 && l.at>0);
   const upcoming=lines.filter(l=>l.at>0 && l.at<minsLeft).sort((a,b)=>b.at-a.at)[0];
   if(remaining<=0){ instr.innerHTML='FLAME OUT 🍻'; sub.textContent='chill & transfer'; fs.classList.add('flash'); }
@@ -1356,9 +1360,17 @@ document.getElementById('fsOpen').addEventListener('click',()=>{
   const fs=document.getElementById('brewFS'); fs.hidden=false; updateFS();
   if(fs.requestFullscreen) fs.requestFullscreen().catch(()=>{});
 });
-document.getElementById('fsExit').addEventListener('click',()=>{
+document.getElementById('fsExit').addEventListener('click',(e)=>{
+  e.stopPropagation();
   document.getElementById('brewFS').hidden=true;
   if(document.fullscreenElement && document.exitFullscreen) document.exitFullscreen().catch(()=>{});
+});
+// tap the screen to start the boil if it hasn't started yet
+document.getElementById('brewFS').addEventListener('click',(e)=>{
+  if(e.target.closest('#fsExit')) return;
+  const running = timer!==null;
+  const started = running || boilDone || remaining < beer.boil*60;
+  if(!started){ setFromElapsed(0); updateFS(); }
 });
 
 /* ---- Brew wizard: "what do you want to brew today?" → vibe → ingredients → proposals ---- */
