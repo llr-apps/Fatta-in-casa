@@ -1,5 +1,5 @@
 /* Brew Card service worker — v3 (auto-update fix) */
-const CACHE = 'brewcard-v10';
+const CACHE = 'brewcard-v11';
 const SHELL = ['./', './index.html', './manifest.webmanifest', './icon-192.png', './icon-512.png', './icon-180.png'];
 
 self.addEventListener('install', e => {
