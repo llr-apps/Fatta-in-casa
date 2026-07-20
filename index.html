@@ -830,9 +830,9 @@ const BEERS=[
   tip:"Rice, like corn, is the classic light-lager adjunct — it thins the body and dries the finish without adding flavour, giving that clean San Miguel crispness. Flaked rice is pre-gelatinized so it goes straight in the mash (all-grain); for extract, it needs a small partial mash with base malt. Ferment cold and lager at least 2 weeks for a truly clean, pale result.",
   mash:M.lagerSacc,boil:60,ferm:F.lager},
 
- {id:'hoppyamber',name:'Hoppy Amber (dark-extract friendly)',style:'American Amber/Red Ale · ~16 SRM, deep amber',desc:"A big American-hopped amber — malty caramel backbone under a huge citrus-pine-tropical hop aroma from a late boil, an 80 °C hop stand and a generous dry hop. Built to work great with dark malt extract (like Meridian): switch to Extract mode and tick Dark malt extract to brew it from jars. Not a pale ale — the amber colour and toffee depth are the point.",
-  og:'1.048',fg:'1.011',abv:'5.0%',ibu:'40',srm:'16',type:'ale',pitch:'18–20 °C',
-  grains:[{n:'Pale / Maris Otter',note:'base (→ dark LME in extract mode)',kg:3.2},{n:'Munich malt',note:'malt depth',kg:0.5},{n:'Crystal 60',note:'caramel & amber colour',kg:0.6},{n:'Chocolate malt',note:'a touch — colour & depth',kg:0.1},{n:'Dextrose',note:'~300 g — dries the finish & lifts ABV',kg:0.3,mash:false}],
+ {id:'hoppyamber',name:'My Hoppy Dark Ale (extract)',style:'Hoppy Amber/Brown · dark, ~5% ABV',desc:"My recipe — a modern-hopped dark ale built on dark malt extract (Meridian). Malty and dark with a big citrus-pine-tropical hop aroma from a late boil, an 80 °C hop stand and a generous dry hop. Dextrose dries the finish and lifts the ABV. Brew it in Extract mode with Dark malt extract ticked.",
+  og:'1.047',fg:'1.009',abv:'5.1%',ibu:'40',srm:'22',type:'ale',pitch:'18–20 °C',
+  grains:[{n:'Dark malt extract (Meridian)',note:'6 jars × 370 g ≈ 2.22 kg — stir in off the heat',kg:2.22,mash:false},{n:'Dextrose',note:'600 g — dries the finish & lifts ABV',kg:0.6,mash:false}],
   hops:[
     {n:'Chinook',tag:'bitter',t:60,g:10},
     {n:'Centennial',tag:'flavor',t:15,g:15},
@@ -844,16 +844,15 @@ const BEERS=[
     {n:'Amarillo',tag:'dry hop',t:'dry hop',g:30},
     {n:'Simcoe',tag:'dry hop',t:'dry hop',g:20}
   ],
-  yeast:'Coopers ale (or US-05)',ynote:'Use 2 packs at 20 L; ferment 18–20 °C. US-05 is cleaner, Coopers adds a light fruitiness',
+  yeast:'Safale US-05',ynote:'18–20 °C. 1 packet works; 2 is safer at 20 L. US-05 is clean; Coopers adds a light fruitiness',
   water:'Balanced; a little sulfate sharpens the hops.',
-  optional:'Extract build: switch to Extract mode and tick Dark malt extract — ~7 Meridian jars (2.6 kg) plus the 300 g dextrose lands the same beer.',
-  tip:"Hop-forward tips: (1) Whirlpool/hop stand — after flame-out, cool to ~80 °C, add the whirlpool hops, cover and steep 20 min for big aroma with almost no added bitterness. (2) Dark-extract build: switch to Extract mode and tick Dark malt extract; the app shows the Meridian jar count and steeps the Crystal/Chocolate. Late-extract trick: hold back a third of the extract until the last 15 min for lighter colour and better hop aroma. (3) Ferment 5–7 days before dry-hopping (not 3) so fermentation is done, then dry hop 3 days and package. (4) Best fresh — hop aroma fades within weeks.",
-  mash:M.single67,boil:60,ferm:F.ale}
+  tip:"My build (20 L): dissolve 6 Meridian jars (2.22 kg) + 600 g dextrose off the heat, then boil 60 min with the hop schedule. Whirlpool/hop stand: after flame-out cool to ~80 °C, add Simcoe + Cascade, cover and steep 20 min — big aroma, almost no added bitterness. Ferment 5–7 days, then dry hop 3 days and package. Best fresh. Note: with dark extract this lands dark/brown, not gold — that's expected.",
+  boil:60,ferm:F.ale}
 ];
 
 /* ---- state ---- */
 function cloneBeer(b){ return JSON.parse(JSON.stringify(b)); }
-const APP_VERSION = '2.5.1';
+const APP_VERSION = '2.5.3';
 let beer = cloneBeer(BEERS[0]), baseBeer = BEERS[0], vol = 20, mode = 'grain';
 const BASE = 20;
 const LME_FACTOR = 0.75; // 1 kg mashed base grain ≈ 0.75 kg liquid malt extract
@@ -863,7 +862,7 @@ const fmtL  = l  => '~'+l.toFixed(1)+' L';
 
 // classify a grain by name: base (mash), steep (specialty), adjunct (flaked/unmalted), sugar, spice
 function role(g){
-  if(g.mash===false){ return /candi|sugar/i.test(g.n) ? 'sugar' : 'spice'; }
+  if(g.mash===false){ return /candi|sugar|dextrose|glucose|extract|lme|dme/i.test(g.n) ? 'sugar' : 'spice'; }
   const n = g.n.toLowerCase();
   if(/crystal|caramel|caramunich|carapils|carafa|chocolate|black malt|roasted|roast/.test(n)) return 'steep';
   if(/flaked|unmalted|oats|flaked barley/.test(n)) return 'adjunct';
@@ -906,7 +905,7 @@ const GRAIN_DB={
   pilsner:{pot:300,col:1.7}, pale:{pot:300,col:3}, munich:{pot:295,col:9}, vienna:{pot:298,col:4},
   wheat:{pot:305,col:2}, maize:{pot:290,col:1.3}, oats:{pot:285,col:1.3}, flakedwheat:{pot:300,col:2},
   flakedbarley:{pot:285,col:2.2}, rice:{pot:295,col:0.6}, crystal:{pot:255,col:55}, choc:{pot:255,col:300}, roast:{pot:250,col:430},
-  darkmalt:{pot:255,col:370}, sugar:{pot:384,col:0}
+  darkmalt:{pot:255,col:370}, sugar:{pot:384,col:0}, extract:{pot:320,col:8}, darkextract:{pot:320,col:50}
 };
 function extractPC(){ if(hasDarkExtract()) return {pot:320,col:50}; const s=+beer.srm; return s<=6?{pot:320,col:4}:s<=14?{pot:320,col:18}:{pot:320,col:45}; }
 function yeastAtt(){ const p=yeastProfile(beer.yeast); const A={lager:.80,kolsch:.78,ale:.77,english:.72,belgian:.82,saison:.86,hefe:.76,wheat:.76,hazy:.75,kveik:.80}; return A[p.key]||.75; }
@@ -987,7 +986,7 @@ function renderIngredients(){
   const banner = beer.fitted ? `<div class="fit-note">🧰 Adapted to your cupboard — swapped or dropped what you didn't have (look for “your sub” tags). Tap <b>Edit / use what I have</b> to fine-tune, or reload the style from the picker for the original.</div>` : '';
   if(mode==='extract'){
     let rows = darkExtractWarning();
-    rows += `<div class="row"><div class="name">${lmeType()}<small>replaces the mashed barley — stir in off the heat</small></div><div class="amt">${fmtKg(lmeKg()*k)}</div></div>`;
+    if(lmeKg()>0.01) rows += `<div class="row"><div class="name">${lmeType()}<small>replaces the mashed barley — stir in off the heat</small></div><div class="amt">${fmtKg(lmeKg()*k)}</div></div>`;
     rawStarch().forEach(g=>{
       const what = grainToken(g.n)==='rice' ? 'rice' : 'corn';
       rows += `<div class="row"><div class="name">${g.n} <span class="tag">partial mash</span><small>${what} needs a small partial mash with base malt to convert — or omit it</small></div><div class="amt">${fmtKg(g.kg*k)}</div></div>`;
@@ -1472,14 +1471,13 @@ document.getElementById('wizStep').addEventListener('click',e=>{
   else if(act==='restart') wizStart();
   else if(act==='show') wizShowResults();
   else if(act==='tellme'){
-    // open the cupboard matcher and scroll to it
+    // make sure the cupboard is open, update the wizard, THEN scroll down to the chips
     const sb=document.getElementById('suggestBody');
-    if(sb.classList.contains('closed')||sb.style.display==='none'){ document.getElementById('suggestToggle').click(); }
-    document.getElementById('chipGroups').scrollIntoView({behavior:'smooth',block:'center'});
-    // leave a "done picking" button in the wizard to jump back to proposals
+    if(sb.hidden){ document.getElementById('suggestToggle').click(); }
     wizRender(`<div class="wiz-q">Pick your ingredients in the cupboard below 👇 — then come back and tap:</div>`+
       `<button class="wiz-opt" data-act="show"><span class="emoji">✅</span><span>I'm done — show me what I can brew<span class="sub" id="wizPickCount">${have.size} ingredients selected</span></span></button>`+
       `<button class="wiz-back" data-act="back">← back</button>`);
+    setTimeout(()=>{ const t=document.getElementById('chipGroups'); if(t) t.scrollIntoView({behavior:'smooth',block:'start'}); }, 80);
   }
 });
 
@@ -1812,6 +1810,8 @@ function grainToken(name){
   if(/roasted|black malt|roast/.test(n))return'roast';
   if(/carafa/.test(n))return'darkmalt';
   if(/candi|sugar|dextrose|corn sugar|glucose/.test(n))return'sugar';
+  if(/dark.*extract|dark.*lme|dark.*dme/.test(n))return'darkextract';
+  if(/extract|\blme\b|\bdme\b/.test(n))return'extract';
   return'pale';
 }
 function hopFamFromName(name){
@@ -1932,8 +1932,9 @@ function fitToCupboard(b){
   let changed=false;
   // fermentables: base/adjunct always kept (needed for mash OR the LME conversion); specialty/sugar kept only if you have it
   const keptGrains = b.grains.filter(g=>{
-    const r=role(g);
-    if(r==='steep'||r==='sugar'){ const drop=!have.has(grainToken(g.n)); if(drop) changed=true; return !drop; }
+    const r=role(g), tok=grainToken(g.n);
+    if(tok==='extract'||tok==='darkextract') return true; // malt extract is the base — always keep
+    if(r==='steep'||r==='sugar'){ const drop=!have.has(tok); if(drop) changed=true; return !drop; }
     return true; // base + adjunct stay
   });
   b.grains = keptGrains;
