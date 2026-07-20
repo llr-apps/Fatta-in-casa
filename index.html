@@ -832,7 +832,7 @@ const BEERS=[
 
  {id:'hoppyamber',name:'My Hoppy Dark Ale (extract)',style:'Hoppy Amber/Brown · dark, ~5% ABV',desc:"My recipe — a modern-hopped dark ale built on dark malt extract (Meridian). Malty and dark with a big citrus-pine-tropical hop aroma from a late boil, an 80 °C hop stand and a generous dry hop. Dextrose dries the finish and lifts the ABV. Brew it in Extract mode with Dark malt extract ticked.",
   og:'1.047',fg:'1.009',abv:'5.1%',ibu:'40',srm:'22',type:'ale',pitch:'18–20 °C',
-  grains:[{n:'Dark malt extract (Meridian)',note:'6 jars × 370 g ≈ 2.22 kg — stir in off the heat',kg:2.22,mash:false},{n:'Dextrose',note:'600 g — dries the finish & lifts ABV',kg:0.6,mash:false}],
+  grains:[{n:'Dark malt extract (Meridian)',note:'stir in off the heat',kg:2.22,mash:false},{n:'Dextrose',note:'dries the finish & lifts ABV',kg:0.6,mash:false}],
   hops:[
     {n:'Chinook',tag:'bitter',t:60,g:10},
     {n:'Centennial',tag:'flavor',t:15,g:15},
@@ -847,16 +847,32 @@ const BEERS=[
   yeast:'Safale US-05',ynote:'18–20 °C. 1 packet works; 2 is safer at 20 L. US-05 is clean; Coopers adds a light fruitiness',
   water:'Balanced; a little sulfate sharpens the hops.',
   tip:"My build (20 L): dissolve 6 Meridian jars (2.22 kg) + 600 g dextrose off the heat, then boil 60 min with the hop schedule. Whirlpool/hop stand: after flame-out cool to ~80 °C, add Simcoe + Cascade, cover and steep 20 min — big aroma, almost no added bitterness. Ferment 5–7 days, then dry hop 3 days and package. Best fresh. Note: with dark extract this lands dark/brown, not gold — that's expected.",
+  boil:60,ferm:F.ale},
+
+ {id:'blackdiamond',name:'Bimby Black Diamond',style:'German-Style Dark Ale · black with ruby highlights, ~5% ABV',desc:"A smooth German-style dark ale on dark malt extract — black with ruby highlights, gentle roast and caramel-maple depth under soft Tettnanger noble hops. Clean and lager-like from K-97 fermented cool. An extract + steep recipe designed around the Thermomix (TM6) for crushing and steeping.",
+  og:'1.048',fg:'1.010',abv:'5.0%',ibu:'30',srm:'36',type:'ale',pitch:'15–18 °C',
+  grains:[{n:'Meridiana Dark LME',note:'dissolve off the heat',kg:3.0,mash:false},{n:'IREKS Crystal Maple',note:'caramel & maple depth (steep)',kg:0.25},{n:'IREKS Black Malt',note:'colour & gentle roast (steep)',kg:0.15}],
+  hops:[{n:'Tettnang',tag:'bitter',t:60,g:55},{n:'Tettnang',tag:'aroma',t:10,g:20}],
+  yeast:'SafAle K-97',ynote:'German ale / Kölsch strain — ferment 15–18 °C for a clean, lager-like dark ale',
+  water:'Soft to balanced; low sulfate keeps the roast smooth.',
+  tip:"Thermomix (TM6) build: (1) Crush — dry grains, max ~250 g per batch, 1–2 turbo pulses of 0.5 s for a coarse crack (Black Malt is brittle: pulse less). (2) Steep — 1.5 L water at 68 °C, 25–30 min, reverse ⟲ speed 1; Crystal Maple from the start, Black Malt for the last 10 min (milder) or the whole time (bolder). Strain through the simmering basket into the pot; rinse the grain bed with ~1 L at 75 °C. (3) Boil 60 min — top up to ≥10 L, dissolve the LME off the heat, then 55 g Tettnanger at 60 min + 20 g at 10 min. (4) Ferment — chill to ≤20 °C, top up to 20 L, aerate, pitch K-97 at 15–18 °C for 10–14 days; leave 20 %+ headspace or use a blow-off (big krausen); optional cold crash 2–3 days at 2–4 °C. (5) Bottle — 110 g sugar (~2.3 vol CO₂), condition 2 weeks at ~20 °C, then chill. Best after 3–4 weeks.",
   boil:60,ferm:F.ale}
 ];
 
 /* ---- state ---- */
 function cloneBeer(b){ return JSON.parse(JSON.stringify(b)); }
-const APP_VERSION = '2.5.3';
+const APP_VERSION = '2.5.5';
 let beer = cloneBeer(BEERS[0]), baseBeer = BEERS[0], vol = 20, mode = 'grain';
 const BASE = 20;
 const LME_FACTOR = 0.75; // 1 kg mashed base grain ≈ 0.75 kg liquid malt extract
 const fmtKg = kg => kg>=1 ? kg.toFixed(2)+' kg' : Math.round(kg*1000)+' g';
+const JAR_G = 370; // Meridian jar size
+// amount string for a fermentable; shows dark/light malt extract in jars (Meridian 370 g) + kg
+function grainAmt(g,k){
+  const kg=g.kg*k, tok=grainToken(g.n);
+  if(tok==='darkextract'||tok==='extract'){ const jars=Math.max(1,Math.round(kg*1000/JAR_G)); return `${jars} jar${jars===1?'':'s'} · ${kg.toFixed(2)} kg`; }
+  return kg<0.1 ? Math.round(kg*1000)+' g' : (kg>=1 ? kg.toFixed(2)+' kg' : Math.round(kg*1000)+' g');
+}
 const fmtG  = g  => Math.round(g)+' g';
 const fmtL  = l  => '~'+l.toFixed(1)+' L';
 
@@ -995,14 +1011,12 @@ function renderIngredients(){
       rows += `<div class="row"><div class="name">${g.n} <span class="tag">steep</span><small>${g.note||'specialty grain'}</small></div><div class="amt">${fmtKg(g.kg*k)}</div></div>`;
     });
     extras().forEach(g=>{
-      const amt = g.kg<0.1 ? fmtG(g.kg*1000*k) : fmtKg(g.kg*k);
-      rows += `<div class="row"><div class="name">${g.n}<small>${g.note||''}</small></div><div class="amt">${amt}</div></div>`;
+      rows += `<div class="row"><div class="name">${g.n}<small>${g.note||''}</small></div><div class="amt">${grainAmt(g,k)}</div></div>`;
     });
     document.getElementById('grains').innerHTML = banner + rows;
   } else {
     document.getElementById('grains').innerHTML = banner + beer.grains.map(g=>{
-      const amt = g.mash===false && g.kg<0.1 ? fmtG(g.kg*1000*k) : fmtKg(g.kg*k);
-      return `<div class="row"><div class="name">${g.n}${g.note?`<small>${g.note}</small>`:''}</div><div class="amt">${amt}</div></div>`;
+      return `<div class="row"><div class="name">${g.n}${g.note?`<small>${g.note}</small>`:''}</div><div class="amt">${grainAmt(g,k)}</div></div>`;
     }).join('');
   }
   document.getElementById('hops').innerHTML = beer.hops.map(h=>{
