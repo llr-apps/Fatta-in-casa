@@ -856,12 +856,38 @@ const BEERS=[
   yeast:'SafAle K-97',ynote:'German ale / Kölsch strain — ferment 15–18 °C for a clean, lager-like dark ale',
   water:'Soft to balanced; low sulfate keeps the roast smooth.',
   tip:"Thermomix (TM6) build: (1) Crush — dry grains, max ~250 g per batch, 1–2 turbo pulses of 0.5 s for a coarse crack (Black Malt is brittle: pulse less). (2) Steep — 1.5 L water at 68 °C, 25–30 min, reverse ⟲ speed 1; Crystal Maple from the start, Black Malt for the last 10 min (milder) or the whole time (bolder). Strain through the simmering basket into the pot; rinse the grain bed with ~1 L at 75 °C. (3) Boil 60 min — top up to ≥10 L, dissolve the LME off the heat, then 55 g Tettnanger at 60 min + 20 g at 10 min. (4) Ferment — chill to ≤20 °C, top up to 20 L, aerate, pitch K-97 at 15–18 °C for 10–14 days; leave 20 %+ headspace or use a blow-off (big krausen); optional cold crash 2–3 days at 2–4 °C. (5) Bottle — 110 g sugar (~2.3 vol CO₂), condition 2 weeks at ~20 °C, then chill. Best after 3–4 weeks.",
+  boil:60,ferm:F.ale},
+
+ {id:'blackipa',name:'Black IPA (Cascadian Dark Ale)',style:'Black IPA · black, ~70 EBC, hop-forward',desc:"A proper Cascadian Dark Ale on Meridian LME — black by design, hop-forward by intent. The trick that makes it a Black IPA and not a hoppy stout: cold-steep the black malt overnight, which leaches smooth coffee/cocoa colour while leaving the ashy tannins behind, so the hops stay in front. Extract + optional mini-mash. Big American hop bill, dry-hopped.",
+  og:'1.060',fg:'1.012',abv:'6.3%',ibu:'60',srm:'35',type:'ale',pitch:'18–20 °C',
+  grains:[
+    {n:'Meridian Dark LME',note:'2.5 kg — add in two doses (see steps): 1.5 kg at start, 1.0 kg at 15 min',kg:2.5,mash:false},
+    {n:'Vienna malt',note:'mini-mash with the maize (optional) — crisper, drier body',kg:0.4},
+    {n:'Flaked maize',note:'mini-mash with the Vienna — must be mashed, not steeped',kg:0.3},
+    {n:'Black malt',note:'COLD-STEEP overnight — clean black colour, no harsh tannin (see steps)',kg:0.275},
+    {n:'Maple syrup',note:'add at 15 min — dries the finish, subtle depth',kg:0.4,mash:false}
+  ],
+  hops:[
+    {n:'Columbus',tag:'bitter',t:60,g:25},
+    {n:'Chinook',tag:'flavor',t:15,g:15},
+    {n:'Centennial',tag:'flavor',t:15,g:15},
+    {n:'Cascade',tag:'whirlpool',t:'whirlpool',g:20},
+    {n:'Amarillo',tag:'whirlpool',t:'whirlpool',g:20},
+    {n:'Simcoe',tag:'whirlpool',t:'whirlpool',g:15},
+    {n:'Cascade',tag:'dry hop',t:'dry hop',g:30},
+    {n:'Centennial',tag:'dry hop',t:'dry hop',g:25},
+    {n:'Amarillo',tag:'dry hop',t:'dry hop',g:25},
+    {n:'Simcoe',tag:'dry hop',t:'dry hop',g:12}
+  ],
+  yeast:'Coopers ale',ynote:'Ferment 18–20 °C. Aerate well up front; optional rehydrate 15 min in 25–30 °C water',
+  water:'Balanced; sulfate-forward accentuates the hops. Low carbonate keeps the black malt smooth.',
+  tip:"THE NIGHT BEFORE — black malt cold-steep (this is what makes it a Black IPA, not a hoppy stout): (1) Crush 275 g black malt to a coarse crack — not floury (fine milling pulls harsh tannin). (2) Grain bag in a jug + 1.0 L fridge-cold water, squeeze to wet. (3) Refrigerate 12–24 h. (4) Lift, drip, ONE gentle squeeze — don't wring (tannins). (5) Strain through a coffee filter into a jar → ~0.8–0.9 L of near-opaque black liquor; keep chilled for the boil. Cold water leaches colour + smooth coffee/cocoa but leaves the ashy tannins behind.\nMINI-MASH (optional) — Vienna + maize: flaked maize is pre-cooked but has no enzymes, so it MUST be mashed with the diastatic Vienna (keep maize ≤ Vienna weight). Mash 400 g Vienna + 300 g maize in 2.0 L at 66 °C, 60 min; sparge with 1.5 L at 75 °C; add the ~3 L sweet wort to the kettle.\nBOIL 60 min — golden rule: KILL THE HEAT before stirring in any LME (undissolved extract scorches and darkens). Heat off → dissolve 1.5 kg Meridian → reheat. 60 min: Columbus 25 g (bittering). 15 min left: Chinook 15 g + Centennial 15 g; heat off, dissolve the reserved 1.0 kg LME (late = better hop utilisation), whirlfloc. 10 min left: heat off, stir in 400 g maple + the black cold-steep liquor, back to boil (short boil integrates + pasteurises without cooking off the smooth roast).\nWHIRLPOOL — cool to 75–80 °C, add Cascade 20 g + Amarillo 20 g + Simcoe 15 g, steep 20 min, then chill fast to 18–20 °C.\nFERMENT — OG target ~1.060, aerate, pitch Coopers at 18–20 °C. Day ~4–5 as krausen drops, dry hop Cascade 30 + Centennial 25 + Amarillo 25 + Simcoe 12 g; contact 4–6 days only (longer = grassy). FG stable ~1.012.\nPACKAGE — cold-crash 24–48 h at 2–4 °C, transfer gently to the corny (oxygen wrecks hop aroma), purge with CO₂, force carb ~2.4 vol (≈10–11 psi at 4 °C). Best fresh — drink within 6–8 weeks.",
   boil:60,ferm:F.ale}
 ];
 
 /* ---- state ---- */
 function cloneBeer(b){ return JSON.parse(JSON.stringify(b)); }
-const APP_VERSION = '2.5.5';
+const APP_VERSION = '2.6.0';
 let beer = cloneBeer(BEERS[0]), baseBeer = BEERS[0], vol = 20, mode = 'grain';
 const BASE = 20;
 const LME_FACTOR = 0.75; // 1 kg mashed base grain ≈ 0.75 kg liquid malt extract
