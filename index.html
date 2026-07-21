@@ -324,6 +324,11 @@
   .sheet .score{letter-spacing:4px;font-size:13px;color:#444}
   .sheet-page{margin-bottom:26px}
   .sheet .sub{color:#666;font-size:11px}
+  .sheet .clocktbl td.clock{font-weight:700;white-space:nowrap;width:88px;font-family:'Oswald',sans-serif}
+  .sheet .clocktbl .t{font-size:9px;text-transform:uppercase;letter-spacing:.04em;color:#777;border:1px solid #bbb;border-radius:3px;padding:0 3px;margin-left:3px}
+  .sheet .procbox{border:1px solid #cfcfcf;border-radius:5px;padding:7px 10px;font-size:11px;line-height:1.5;background:#fafafa}
+  .sheet .procbox p{margin:0 0 6px}
+  .sheet .procbox p:last-child{margin:0}
   @media(max-width:680px){ .sheet .grid2{grid-template-columns:1fr;gap:0} .sheet{padding:18px 16px} }
 
   @media print{
@@ -887,7 +892,7 @@ const BEERS=[
 
 /* ---- state ---- */
 function cloneBeer(b){ return JSON.parse(JSON.stringify(b)); }
-const APP_VERSION = '2.6.0';
+const APP_VERSION = '2.7.0';
 let beer = cloneBeer(BEERS[0]), baseBeer = BEERS[0], vol = 20, mode = 'grain';
 const BASE = 20;
 const LME_FACTOR = 0.75; // 1 kg mashed base grain ≈ 0.75 kg liquid malt extract
@@ -1186,7 +1191,7 @@ function renderMash(){
     return;
   }
   document.getElementById('procHead').textContent = 'Mash schedule';
-  let steps = beer.mash.map(s=>({t:String(s.t),n:s.n,d:s.d,m:String(s.m)}));
+  let steps = beerMash().map(s=>({t:String(s.t),n:s.n,d:s.d,m:String(s.m)}));
   // optional late dark-grain addition, inserted just before mash out
   if(dark.length){
     const list = dark.map(g=>g.n).join(' + ');
@@ -1198,7 +1203,7 @@ function renderMash(){
     const isTemp = /^\d+$/.test(s.t);
     return `<div class="mash-step"><div class="mash-temp" style="font-size:${isTemp?'23px':'14px'}">${s.t}${isTemp?'<small>°C</small>':''}</div><div class="mash-desc"><b>${s.n}</b><br>${s.d}</div>${mashTimeCol(s.m,i)}</div>`;
   }).join('');
-  const first = beer.mash.find(x=>/^\d+$/.test(String(x.t)))||beer.mash[0];
+  const first = beerMash().find(x=>/^\d+$/.test(String(x.t)))||beerMash()[0];
   let note = `<b>When to add what.</b> Mash in the <b>base malt</b>`;
   if(light.length) note += ` together with the caramel/crystal grains (${light.map(g=>g.n).join(', ')})`;
   note += ` at the very start — they all convert and steep together in the mash.`;
@@ -1272,6 +1277,7 @@ function renderFerment(){
   document.getElementById('ferm').innerHTML = summary + plan.map(f=>
     `<div class="ferm-step"><h3>${f.h}</h3><div class="meta">${f.meta}</div><p>${f.p}</p></div>`).join('');
 }
+function beerMash(){ return beer.mash || [{n:'Saccharification rest',t:66,m:60,d:'Hold ~66 °C for 60 min (extract recipe — this default appears only if you switch to all-grain).'},{n:'Mash-out',t:75,m:10,d:'Raise to 75 °C for 10 min.'}]; }
 function renderWalk(){
   const k = vol/BASE;
   const boilHops = beer.hops.filter(h=>typeof h.t==='number');
@@ -1305,7 +1311,7 @@ function renderWalk(){
     const w=waterVols();
     const grain = fmtKg(totalGrainKg()*k);
     const strike = fmtL(w.strike);
-    const first = (beer.mash.find(x=>/^\d+$/.test(String(x.t)))||beer.mash[0]).t, last = beer.mash[beer.mash.length-1].t;
+    const _m=beerMash(); const first = (_m.find(x=>/^\d+$/.test(String(x.t)))||_m[0]).t, last = _m[_m.length-1].t;
     steps = [
       ['Heat the mash water',`Bring <b>${strike}</b> of strike water to a few degrees above <b>${first} °C</b> — the cold grain will pull the temperature down.`],
       ['Mash in',`Stir in all <b>${grain}</b> of grain slowly, no dry clumps. Settle near <b>${first} °C</b>.`],
@@ -1318,7 +1324,7 @@ function renderWalk(){
       ['Pitch yeast',`Add your <b>${packsFor()}</b> of yeast${beer.type==='lager'||parseFloat(beer.og)>=1.07?' from a healthy starter':''}. Reading should be near <b>${beer.og}</b>.`],
       ['Ferment & package',`Follow section 4: ${beer.type==='lager'?'cold primary, diacetyl rest, then weeks of lagering':'ferment out, condition, then package'}. Then carbonate. Patience makes the style.`]
     ];
-    const cereal = beer.mash.find(s=>/cereal/i.test(s.n));
+    const cereal = beerMash().find(s=>/cereal/i.test(s.n));
     if(cereal) steps.splice(1,0,['Cereal mash (if using raw maize)', cereal.d]);
   }
   if(beer.tip) steps.push(['Closest to the real deal', beer.tip]);
@@ -2284,14 +2290,51 @@ function sheetGrainRows(){
   }
   return rows;
 }
+function sheetBoilClock(){
+  const k=vol/BASE;
+  const evts=[];
+  beer.hops.filter(h=>typeof h.t==='number').forEach(h=>evts.push({t:h.t, txt:`Add <b>${h.n} ${fmtG(h.g*k)}</b>${h.tag?` <span class="t">${h.tag}</span>`:''}`}));
+  evts.push({t:beer.boil, txt:'<b>Start the rolling boil</b> — begin the 60-min timer'});
+  evts.push({t:0, txt:'<b>Flame out</b> → on to the whirlpool'});
+  const times=[...new Set(evts.map(e=>e.t))].sort((a,b)=>b-a);
+  const rows=times.map(t=>{
+    const items=evts.filter(e=>e.t===t).map(e=>e.txt).join(' · ');
+    const left = t===beer.boil?'START':(t===0?'0 · FLAMEOUT':`${t} MIN`);
+    return `<tr><td class="clock">${left}</td><td>${items}</td></tr>`;
+  }).join('');
+  return `<h3>Boil clock — ${beer.boil} min</h3><table class="clocktbl"><tr><th>Time</th><th>Do this</th></tr>${rows}</table>`;
+}
+function sheetProcess(){
+  if(!beer.tip) return '';
+  const paras = beer.tip.split(/\n+/).map(s=>s.trim()).filter(Boolean);
+  return `<h3>Process notes</h3><div class="procbox">${paras.map(p=>`<p>${lEsc(p)}</p>`).join('')}</div>`;
+}
+function sheetTimelinePage(){
+  const k=vol/BASE;
+  const wp=beer.hops.filter(h=>h.t==='whirlpool');
+  const dry=beer.hops.filter(h=>h.t==='dry hop');
+  const wpStr = wp.length ? `<h3>Whirlpool / hop stand (~75–80 °C, 20 min)</h3><div class="procbox"><p>${wp.map(h=>`${h.n} <b>${fmtG(h.g*k)}</b>`).join(' + ')} — stir to a whirlpool, cover, steep 20 min, then chill fast.</p></div>` : '';
+  const dryStr = dry.length ? `<h3>Dry hop (as the krausen drops, 4–6 days contact)</h3><div class="procbox"><p>${dry.map(h=>`${h.n} <b>${fmtG(h.g*k)}</b>`).join(' + ')}</p></div>` : '';
+  const fermStr = `<h3>Fermentation plan</h3><table><tr><th>Stage</th><th>Detail</th></tr>${fermPlan(beer).map(f=>`<tr><td>${f.h}</td><td>${f.meta}</td></tr>`).join('')}</table>`;
+  return `<div class="sheet-page">
+    <h1 style="margin-bottom:2px">${beer.name} — Brew-day timeline</h1>
+    <div class="sub">${beer.style} · ${vol} L · target OG ${beer.og} / FG ${beer.fg} / ${beer.abv} / ${beer.ibu} IBU / ${beer.srm} SRM</div>
+    ${sheetBoilClock()}
+    ${wpStr}
+    ${dryStr}
+    ${fermStr}
+    ${sheetProcess()}
+  </div>`;
+}
 function buildSheetHTML(){
   const k=vol/BASE;
   const grainRows=sheetGrainRows();
   const totG=grainRows.reduce((s,r)=>s+(typeof r[1]==='number'?r[1]:0),0);
   const boilHops=beer.hops.filter(h=>typeof h.t==='number').sort((a,b)=>b.t-a.t);
   const dryHops=beer.hops.filter(h=>typeof h.t!=='number');
-  const first=(beer.mash.find(x=>/^\d+$/.test(String(x.t)))||beer.mash[0]).t, last=beer.mash[beer.mash.length-1].t;
-  const mashTime=beer.mash.reduce((s,m)=>s+(typeof m.m==='number'?m.m:0),0);
+  const mash = beer.mash || [{n:'Saccharification',t:66,m:60},{n:'Mash-out',t:75,m:10}];
+  const first=(mash.find(x=>/^\d+$/.test(String(x.t)))||mash[0]).t, last=mash[mash.length-1].t;
+  const mashTime=mash.reduce((s,m)=>s+(typeof m.m==='number'?m.m:0),0);
   const chk=(on,label)=>`<span>${on?'☒':'☐'} ${label}</span>`;
   const ex=(v)=>`<td>${v}</td><td class="blank"></td>`; // expected / actual
   const blankRow=(cells)=>'<tr>'+cells.map(c=>`<td class="blank">${c||''}</td>`).join('')+'</tr>';
@@ -2394,7 +2437,7 @@ function buildSheetHTML(){
     ${sheetActuals()}
   </div>`;
 
-  return page1+page2;
+  return page1+sheetTimelinePage()+page2;
 }
 function latestActual(keys){
   try{ for(const e of (brewLog||[])){ if(e.type!=='data') continue; if(e.beer && e.beer!==beer.name) continue; const lab=(e.label||'').toLowerCase(); if(keys.some(k=>lab.includes(k))) return e.value||''; } }catch(_){}
